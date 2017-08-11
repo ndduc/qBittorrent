@@ -42,7 +42,6 @@ namespace BitTorrent
         QString category;
         QSet<QString> tags;
         QString savePath;
-        bool disableTempPath = false; // e.g. for imported torrents
         bool sequential = false;
         bool firstLastPiecePriority = false;
         TriStateBool addForced;

@@ -96,7 +96,6 @@ namespace BitTorrent
         QString category;
         QSet<QString> tags;
         QString savePath;
-        bool disableTempPath;
         bool sequential;
         bool firstLastPiecePriority;
         bool hasSeedStatus;
@@ -104,6 +103,7 @@ namespace BitTorrent
         bool hasRootFolder;
         bool addForced;
         bool addPaused;
+        bool useAutoTMM;
         // for new torrents
         QVector<int> filePriorities;
         // for resumed torrents
@@ -201,8 +201,6 @@ namespace BitTorrent
         // 2. rootPath() - absolute path of torrent file tree (save path + first item from 1st torrent file path).
         // 3. contentPath() - absolute path of torrent content (root path for multifile torrents, absolute file path for singlefile torrents).
         //
-        // These methods have 'actual' parameter (defaults to false) which allow to get actual or final path variant.
-        //
         // Examples.
         // Suppose we have three torrent with following structures and save path `/home/user/torrents`:
         //
@@ -240,9 +238,9 @@ namespace BitTorrent
         // | B | /home/user/torrents/torrentB | /home/user/torrents/torrentB/subdir1/file1 |
         // | C | /home/user/torrents/file1    | /home/user/torrents/file1                  |
 
-        QString savePath(bool actual = false) const;
-        QString rootPath(bool actual = false) const;
-        QString contentPath(bool actual = false) const;
+        QString savePath() const;
+        QString rootPath() const;
+        QString contentPath() const;
 
         bool useTempPath() const;
 
@@ -378,7 +376,6 @@ namespace BitTorrent
 
         void handleAlert(libtorrent::alert *a);
         void handleStateUpdate(const libtorrent::torrent_status &nativeStatus);
-        void handleTempPathChanged();
         void handleCategorySavePathChanged();
         void handleAppendExtensionToggled();
         void saveResumeData(bool updateStatus = false);
@@ -418,11 +415,9 @@ namespace BitTorrent
         void handleStatsAlert(libtorrent::stats_alert *p);
 
         bool isMoveInProgress() const;
-        QString nativeActualSavePath() const;
+        QString nativeSavePath() const;
 
-        void adjustActualSavePath();
-        void adjustActualSavePath_impl();
-        void move_impl(QString path, bool overwrite);
+        void adjustSavePath();
         void moveStorage(const QString &newPath, bool overwrite);
         void manageIncompleteFiles();
         bool addTracker(const TrackerEntry &tracker);
@@ -457,13 +452,11 @@ namespace BitTorrent
 
         // Persistent data
         QString m_name;
-        QString m_savePath;
         QString m_category;
         QSet<QString> m_tags;
         bool m_hasSeedStatus;
         qreal m_ratioLimit;
         int m_seedingTimeLimit;
-        bool m_tempPathDisabled;
         bool m_hasMissingFiles;
         bool m_hasRootFolder;
         bool m_needsToSetFirstLastPiecePriority;

@@ -532,7 +532,7 @@ void PropertiesWidget::openDoubleClickedFile(const QModelIndex &index)
 void PropertiesWidget::openFile(const QModelIndex &index)
 {
     int i = PropListModel->getFileIndex(index);
-    const QDir saveDir(m_torrent->savePath(true));
+    const QDir saveDir(m_torrent->savePath());
     const QString filename = m_torrent->filePath(i);
     const QString file_path = Utils::Fs::expandPath(saveDir.absoluteFilePath(filename));
     qDebug("Trying to open file at %s", qUtf8Printable(file_path));
@@ -556,13 +556,13 @@ void PropertiesWidget::openFolder(const QModelIndex &index, bool containing_fold
         }
         if (path_items.isEmpty())
             return;
-        const QDir saveDir(m_torrent->savePath(true));
+        const QDir saveDir(m_torrent->savePath());
         const QString relative_path = path_items.join("/");
         absolute_path = Utils::Fs::expandPath(saveDir.absoluteFilePath(relative_path));
     }
     else {
         int i = PropListModel->getFileIndex(index);
-        const QDir saveDir(m_torrent->savePath(true));
+        const QDir saveDir(m_torrent->savePath());
         const QString relative_path = m_torrent->filePath(i);
         absolute_path = Utils::Fs::expandPath(saveDir.absoluteFilePath(relative_path));
     }
@@ -763,7 +763,7 @@ void PropertiesWidget::renameSelectedFile()
             if (currentName.startsWith(oldPath)) {
                 QString newName = currentName;
                 newName.replace(0, oldPath.length(), newPath);
-                if (!forceRecheck && QDir(m_torrent->savePath(true)).exists(newName))
+                if (!forceRecheck && QDir(m_torrent->savePath()).exists(newName))
                     forceRecheck = true;
                 newName = Utils::Fs::expandPath(newName);
                 qDebug("Rename %s to %s", qUtf8Printable(currentName), qUtf8Printable(newName));
@@ -775,7 +775,7 @@ void PropertiesWidget::renameSelectedFile()
         // Rename folder in torrent files model too
         PropListModel->setData(modelIndex, newName);
         // Remove old folder
-        const QDir oldFolder(m_torrent->savePath(true) + "/" + oldPath);
+        const QDir oldFolder(m_torrent->savePath() + "/" + oldPath);
         int timeout = 10;
         while (!QDir().rmpath(oldFolder.absolutePath()) && timeout > 0) {
             // FIXME: We should not sleep here (freezes the UI for 1 second)

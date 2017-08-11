@@ -85,7 +85,6 @@ namespace
 
 AddTorrentData::AddTorrentData()
     : resumed(false)
-    , disableTempPath(false)
     , sequential(false)
     , firstLastPiecePriority(false)
     , hasSeedStatus(false)
@@ -93,6 +92,7 @@ AddTorrentData::AddTorrentData()
     , hasRootFolder(true)
     , addForced(false)
     , addPaused(false)
+    , useAutoTMM(false)
     , ratioLimit(TorrentHandle::USE_GLOBAL_RATIO)
     , seedingTimeLimit(TorrentHandle::USE_GLOBAL_SEEDING_TIME)
 {
@@ -103,8 +103,7 @@ AddTorrentData::AddTorrentData(const AddTorrentParams &params)
     , name(params.name)
     , category(params.category)
     , tags(params.tags)
-    , savePath(params.savePath)
-    , disableTempPath(params.disableTempPath)
+    , savePath(params.savePath.trimmed())
     , sequential(params.sequential)
     , firstLastPiecePriority(params.firstLastPiecePriority)
     , hasSeedStatus(params.skipChecking) // do not react on 'torrent_finished_alert' when skipping
@@ -116,17 +115,13 @@ AddTorrentData::AddTorrentData(const AddTorrentParams &params)
     , addPaused(params.addPaused == TriStateBool::Undefined
                 ? Session::instance()->isAddTorrentPaused()
                 : params.addPaused == TriStateBool::True)
+    , useAutoTMM(params.useAutoTMM == TriStateBool::Undefined
+                 ? !Session::instance()->isAutoTMMDisabledByDefault()
+                 : params.useAutoTMM == TriStateBool::True)
     , filePriorities(params.filePriorities)
     , ratioLimit(params.ignoreShareLimits ? TorrentHandle::NO_RATIO_LIMIT : TorrentHandle::USE_GLOBAL_RATIO)
     , seedingTimeLimit(params.ignoreShareLimits ? TorrentHandle::NO_SEEDING_TIME_LIMIT : TorrentHandle::USE_GLOBAL_SEEDING_TIME)
 {
-    bool useAutoTMM = (params.useAutoTMM == TriStateBool::Undefined
-                       ? !Session::instance()->isAutoTMMDisabledByDefault()
-                       : params.useAutoTMM == TriStateBool::True);
-    if (useAutoTMM)
-        savePath = "";
-    else if (savePath.trimmed().isEmpty())
-        savePath = Session::instance()->defaultSavePath();
 }
 
 // TorrentState
@@ -230,24 +225,19 @@ TorrentHandle::TorrentHandle(Session *session, const libtorrent::torrent_handle 
     , m_nativeHandle(nativeHandle)
     , m_state(TorrentState::Unknown)
     , m_renameCount(0)
-    , m_useAutoTMM(data.savePath.isEmpty())
+    , m_useAutoTMM(data.useAutoTMM)
     , m_name(data.name)
-    , m_savePath(Utils::Fs::toNativePath(data.savePath))
     , m_category(data.category)
     , m_tags(data.tags)
     , m_hasSeedStatus(data.hasSeedStatus)
     , m_ratioLimit(data.ratioLimit)
     , m_seedingTimeLimit(data.seedingTimeLimit)
-    , m_tempPathDisabled(data.disableTempPath)
     , m_hasMissingFiles(false)
     , m_hasRootFolder(data.hasRootFolder)
     , m_needsToSetFirstLastPiecePriority(false)
     , m_pauseAfterRecheck(false)
     , m_needSaveResumeData(false)
 {
-    if (m_useAutoTMM)
-        m_savePath = Utils::Fs::toNativePath(m_session->categorySavePath(m_category));
-
     updateStatus();
     m_hash = InfoHash(m_nativeStatus.info_hash);
 
@@ -353,15 +343,12 @@ QString TorrentHandle::currentTracker() const
     return QString::fromStdString(m_nativeStatus.current_tracker);
 }
 
-QString TorrentHandle::savePath(bool actual) const
+QString TorrentHandle::savePath() const
 {
-    if (actual)
-        return Utils::Fs::fromNativePath(nativeActualSavePath());
-    else
-        return Utils::Fs::fromNativePath(m_savePath);
+    return Utils::Fs::fromNativePath(nativeSavePath());
 }
 
-QString TorrentHandle::rootPath(bool actual) const
+QString TorrentHandle::rootPath() const
 {
     if ((filesCount() > 1) && !hasRootFolder())
         return QString();
@@ -369,19 +356,19 @@ QString TorrentHandle::rootPath(bool actual) const
     QString firstFilePath = filePath(0);
     const int slashIndex = firstFilePath.indexOf("/");
     if (slashIndex >= 0)
-        return QDir(savePath(actual)).absoluteFilePath(firstFilePath.left(slashIndex));
+        return QDir(savePath()).absoluteFilePath(firstFilePath.left(slashIndex));
     else
-        return QDir(savePath(actual)).absoluteFilePath(firstFilePath);
+        return QDir(savePath()).absoluteFilePath(firstFilePath);
 }
 
-QString TorrentHandle::contentPath(bool actual) const
+QString TorrentHandle::contentPath() const
 {
     if (filesCount() == 1)
-        return QDir(savePath(actual)).absoluteFilePath(filePath(0));
+        return QDir(savePath()).absoluteFilePath(filePath(0));
     else if (hasRootFolder())
-        return rootPath(actual);
+        return rootPath();
     else
-        return savePath(actual);
+        return savePath();
 }
 
 bool TorrentHandle::isAutoTMMEnabled() const
@@ -397,7 +384,7 @@ void TorrentHandle::setAutoTMMEnabled(bool enabled)
     m_session->handleTorrentSavingModeChanged(this);
 
     if (m_useAutoTMM)
-        move_impl(m_session->categorySavePath(m_category), true);
+        moveStorage(Utils::Fs::toNativePath(m_session->categorySavePath(m_category)), true);
 }
 
 bool TorrentHandle::hasRootFolder() const
@@ -405,7 +392,7 @@ bool TorrentHandle::hasRootFolder() const
     return m_hasRootFolder;
 }
 
-QString TorrentHandle::nativeActualSavePath() const
+QString TorrentHandle::nativeSavePath() const
 {
     return QString::fromStdString(m_nativeStatus.save_path);
 }
@@ -681,7 +668,7 @@ QStringList TorrentHandle::absoluteFilePaths() const
 {
     if (!hasMetadata()) return  QStringList();
 
-    QDir saveDir(savePath(true));
+    QDir saveDir(savePath());
     QStringList res;
     for (int i = 0; i < filesCount(); ++i)
         res << Utils::Fs::expandPathAbs(saveDir.absoluteFilePath(filePath(i)));
@@ -692,7 +679,7 @@ QStringList TorrentHandle::absoluteFilePathsUnwanted() const
 {
     if (!hasMetadata()) return  QStringList();
 
-    QDir saveDir(savePath(true));
+    QDir saveDir(savePath());
     QStringList res;
     std::vector<int> fp;
     fp = m_nativeHandle.file_priorities();
@@ -1292,7 +1279,7 @@ bool TorrentHandle::setCategory(const QString &category)
 
         if (m_useAutoTMM) {
             if (!m_session->isDisableAutoTMMWhenCategoryChanged())
-                move_impl(m_session->categorySavePath(m_category), true);
+                moveStorage(Utils::Fs::toNativePath(m_session->categorySavePath(m_category)), true);
             else
                 setAutoTMMEnabled(false);
         }
@@ -1312,22 +1299,7 @@ void TorrentHandle::move(QString path)
     if (!path.endsWith('/'))
         path += '/';
 
-    move_impl(path, false);
-}
-
-void TorrentHandle::move_impl(QString path, bool overwrite)
-{
-    if (path == savePath()) return;
-    path = Utils::Fs::toNativePath(path);
-
-    if (!useTempPath()) {
-        moveStorage(path, overwrite);
-    }
-    else {
-        m_savePath = path;
-        m_needSaveResumeData = true;
-        m_session->handleTorrentSavePathChanged(this);
-    }
+    moveStorage(Utils::Fs::toNativePath(path), false);
 }
 
 void TorrentHandle::forceReannounce(int index)
@@ -1431,7 +1403,7 @@ void TorrentHandle::moveStorage(const QString &newPath, bool overwrite)
         m_moveStorageInfo.queuedOverwrite = overwrite;
     }
     else {
-        const QString oldPath = nativeActualSavePath();
+        const QString oldPath = nativeSavePath();
         if (QDir(oldPath) == QDir(newPath)) return;
 
         qDebug("move storage: %s to %s", qUtf8Printable(oldPath), qUtf8Printable(newPath));
@@ -1507,15 +1479,7 @@ void TorrentHandle::handleStorageMovedAlert(libtorrent::storage_moved_alert *p)
     }
 
     qDebug("Torrent is successfully moved from %s to %s"
-        , qUtf8Printable(m_moveStorageInfo.oldPath), qUtf8Printable(m_moveStorageInfo.newPath));
-    const QDir oldDir {m_moveStorageInfo.oldPath};
-    if ((oldDir == QDir(m_session->torrentTempPath(info())))
-            && (oldDir != QDir(m_session->tempPath()))) {
-        // torrent without root folder still has it in its temporary save path
-        // so its temp path isn't equal to temp path root
-        qDebug() << "Removing torrent temp folder:" << m_moveStorageInfo.oldPath;
-        Utils::Fs::smartRemoveEmptyFolderTree(m_moveStorageInfo.oldPath);
-    }
+           , qUtf8Printable(m_moveStorageInfo.oldPath), qUtf8Printable(m_moveStorageInfo.newPath));
     updateStatus();
 
     m_moveStorageInfo.newPath.clear();
@@ -1524,10 +1488,7 @@ void TorrentHandle::handleStorageMovedAlert(libtorrent::storage_moved_alert *p)
         m_moveStorageInfo.queuedPath.clear();
     }
 
-    if (!useTempPath()) {
-        m_savePath = newPath;
-        m_session->handleTorrentSavePathChanged(this);
-    }
+    m_session->handleTorrentSavePathChanged(this);
 
     while (!isMoveInProgress() && (m_renameCount == 0) && !m_moveFinishedTriggers.isEmpty())
         m_moveFinishedTriggers.takeFirst()();
@@ -1614,7 +1575,10 @@ void TorrentHandle::handleTorrentCheckedAlert(libtorrent::torrent_checked_alert 
     else if (progress() == 1.0)
         m_hasSeedStatus = true;
 
-    adjustActualSavePath();
+    if (m_useAutoTMM)
+        // if category was changed via config file
+        moveStorage(Utils::Fs::toNativePath(m_session->categorySavePath(m_category)), true);
+
     manageIncompleteFiles();
 
     if (m_pauseAfterRecheck) {
@@ -1636,7 +1600,6 @@ void TorrentHandle::handleTorrentFinishedAlert(libtorrent::torrent_finished_aler
     m_hasMissingFiles = false;
     m_hasSeedStatus = true;
 
-    adjustActualSavePath();
     manageIncompleteFiles();
 
     const bool recheckTorrentsOnCompletion = Preferences::instance()->recheckTorrentsOnCompletion();
@@ -1686,16 +1649,15 @@ void TorrentHandle::handleSaveResumeDataAlert(libtorrent::save_resume_data_alert
         auto savePath = resumeData.find_key("save_path")->string();
         resumeData["save_path"] = Profile::instance().toPortablePath(QString::fromStdString(savePath)).toStdString();
     }
-    resumeData["qBt-savePath"] = m_useAutoTMM ? "" : Profile::instance().toPortablePath(m_savePath).toStdString();
     resumeData["qBt-ratioLimit"] = QString::number(m_ratioLimit).toStdString();
     resumeData["qBt-seedingTimeLimit"] = QString::number(m_seedingTimeLimit).toStdString();
     resumeData["qBt-category"] = m_category.toStdString();
     resumeData["qBt-tags"] = setToEntryList(m_tags);
     resumeData["qBt-name"] = m_name.toStdString();
     resumeData["qBt-seedStatus"] = m_hasSeedStatus;
-    resumeData["qBt-tempPathDisabled"] = m_tempPathDisabled;
     resumeData["qBt-queuePosition"] = queuePosition();
     resumeData["qBt-hasRootFolder"] = m_hasRootFolder;
+    resumeData["qBt-useAutoTMM"] = m_useAutoTMM;
 
     m_session->handleTorrentResumeDataReady(this, resumeData);
 }
@@ -1748,7 +1710,7 @@ void TorrentHandle::handleFileRenamedAlert(libtorrent::file_renamed_alert *p)
         QString newPath = newPathParts.join("/");
         if (!newPathParts.isEmpty() && (oldPath != newPath)) {
             qDebug("oldPath(%s) != newPath(%s)", qUtf8Printable(oldPath), qUtf8Printable(newPath));
-            oldPath = QString("%1/%2").arg(savePath(true)).arg(oldPath);
+            oldPath = QString("%1/%2").arg(savePath()).arg(oldPath);
             qDebug("Detected folder renaming, attempt to delete old folder: %s", qUtf8Printable(oldPath));
             QDir().rmpath(oldPath);
         }
@@ -1822,15 +1784,10 @@ void TorrentHandle::handleMetadataReceivedAlert(libt::metadata_received_alert *p
     }
 }
 
-void TorrentHandle::handleTempPathChanged()
-{
-    adjustActualSavePath();
-}
-
 void TorrentHandle::handleCategorySavePathChanged()
 {
     if (m_useAutoTMM)
-        move_impl(m_session->categorySavePath(m_category), true);
+        moveStorage(Utils::Fs::toNativePath(m_session->categorySavePath(m_category)), true);
 }
 
 void TorrentHandle::handleAppendExtensionToggled()
@@ -1923,29 +1880,10 @@ void TorrentHandle::manageIncompleteFiles()
     }
 }
 
-void TorrentHandle::adjustActualSavePath()
+void TorrentHandle::adjustSavePath()
 {
-    if (!isMoveInProgress())
-        adjustActualSavePath_impl();
-    else
-        m_moveFinishedTriggers.append(boost::bind(&TorrentHandle::adjustActualSavePath_impl, this));
-}
-
-void TorrentHandle::adjustActualSavePath_impl()
-{
-    QString path;
-    if (!useTempPath()) {
-        // Disabling temp dir
-        // Moving all torrents to their destination folder
-        path = savePath();
-    }
-    else {
-        // Moving all downloading torrents to temporary folder
-        path = m_session->torrentTempPath(info());
-        qDebug() << "Moving torrent to its temporary folder:" << path;
-    }
-
-    moveStorage(Utils::Fs::toNativePath(path), true);
+    if (m_useAutoTMM)
+        moveStorage(Utils::Fs::toNativePath(m_session->categorySavePath(m_category)), true);
 }
 
 libtorrent::torrent_handle TorrentHandle::nativeHandle() const
@@ -1970,7 +1908,7 @@ bool TorrentHandle::isMoveInProgress() const
 
 bool TorrentHandle::useTempPath() const
 {
-    return !m_tempPathDisabled && m_session->isTempPathEnabled() && !(isSeed() || m_hasSeedStatus);
+    return !(isSeed() || m_hasSeedStatus);
 }
 
 void TorrentHandle::updateStatus()
@@ -2064,7 +2002,7 @@ void TorrentHandle::prioritizeFiles(const QVector<int> &priorities)
     m_nativeHandle.prioritize_files(priorities.toStdVector());
 
     qDebug() << Q_FUNC_INFO << "Moving unwanted files to .unwanted folder and conversely...";
-    QString spath = savePath(true);
+    QString spath = savePath();
     for (int i = 0; i < priorities.size(); ++i) {
         QString filepath = filePath(i);
         // Move unwanted files to a .unwanted subfolder

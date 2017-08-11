@@ -209,11 +209,6 @@ namespace BitTorrent
 
         QString defaultSavePath() const;
         void setDefaultSavePath(QString path);
-        QString tempPath() const;
-        void setTempPath(QString path);
-        bool isTempPathEnabled() const;
-        void setTempPathEnabled(bool enabled);
-        QString torrentTempPath(const TorrentInfo &torrentInfo) const;
 
         static bool isValidCategoryName(const QString &name);
         // returns category itself and all top level categories
@@ -520,7 +515,7 @@ namespace BitTorrent
         bool addTorrent_impl(AddTorrentData addData, const MagnetUri &magnetUri,
                              TorrentInfo torrentInfo = TorrentInfo(),
                              const QByteArray &fastresumeData = QByteArray());
-        bool findIncompleteFiles(TorrentInfo &torrentInfo, QString &savePath) const;
+        bool findIncompleteFiles(const QString &savePath, TorrentInfo &torrentInfo) const;
 
         void updateSeedingLimitTimer();
         void exportTorrentFile(TorrentHandle *const torrent, TorrentExportFolder folder = TorrentExportFolder::Regular);
@@ -625,7 +620,6 @@ namespace BitTorrent
         CachedSettingValue<QStringList> m_storedTags;
         CachedSettingValue<int> m_maxRatioAction;
         CachedSettingValue<QString> m_defaultSavePath;
-        CachedSettingValue<QString> m_tempPath;
         CachedSettingValue<bool> m_isSubcategoriesEnabled;
         CachedSettingValue<bool> m_isTempPathEnabled;
         CachedSettingValue<bool> m_isAutoTMMDisabledByDefault;

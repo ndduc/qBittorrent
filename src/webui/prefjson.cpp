@@ -59,8 +59,6 @@ QByteArray prefjson::getPreferences()
     // Downloads
     // Hard Disk
     data["save_path"] = Utils::Fs::toNativePath(session->defaultSavePath());
-    data["temp_path_enabled"] = session->isTempPathEnabled();
-    data["temp_path"] = Utils::Fs::toNativePath(session->tempPath());
     data["preallocate_all"] = session->isPreallocationEnabled();
     data["incomplete_files_ext"] = session->isAppendExtensionEnabled();
     QVariantHash dirs = pref->getScanDirs();
@@ -192,10 +190,6 @@ void prefjson::setPreferences(const QString& json)
     // Hard Disk
     if (m.contains("save_path"))
         session->setDefaultSavePath(m["save_path"].toString());
-    if (m.contains("temp_path_enabled"))
-        session->setTempPathEnabled(m["temp_path_enabled"].toBool());
-    if (m.contains("temp_path"))
-        session->setTempPath(m["temp_path"].toString());
     if (m.contains("preallocate_all"))
         session->setPreallocationEnabled(m["preallocate_all"].toBool());
     if (m.contains("incomplete_files_ext"))

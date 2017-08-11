@@ -84,7 +84,7 @@ OptionsDialog::OptionsDialog(QWidget *parent)
 #if (defined(Q_OS_UNIX))
     setWindowTitle(tr("Preferences"));
 #endif
-    
+
     // Icons
     m_ui->tabSelection->item(TAB_UI)->setIcon(GuiIconProvider::instance()->getIcon("preferences-desktop"));
     m_ui->tabSelection->item(TAB_BITTORRENT)->setIcon(GuiIconProvider::instance()->getIcon("preferences-system-network"));
@@ -541,8 +541,6 @@ void OptionsDialog::saveOptions()
     session->setDisableAutoTMMWhenCategoryChanged(m_ui->comboTorrentCategoryChanged->currentIndex() == 1);
     session->setDisableAutoTMMWhenCategorySavePathChanged(m_ui->comboCategoryChanged->currentIndex() == 1);
     session->setDisableAutoTMMWhenDefaultSavePathChanged(m_ui->comboCategoryDefaultPathChanged->currentIndex() == 1);
-    session->setTempPathEnabled(m_ui->checkTempFolder->isChecked());
-    session->setTempPath(Utils::Fs::expandPathAbs(m_ui->textTempPath->selectedPath()));
     session->setAppendExtensionEnabled(m_ui->checkAppendqB->isChecked());
     session->setPreallocationEnabled(preAllocateAllFiles());
     AddNewTorrentDialog::setEnabled(useAdditionDialog());
@@ -770,10 +768,6 @@ void OptionsDialog::loadOptions()
     m_ui->comboTorrentCategoryChanged->setCurrentIndex(session->isDisableAutoTMMWhenCategoryChanged());
     m_ui->comboCategoryChanged->setCurrentIndex(session->isDisableAutoTMMWhenCategorySavePathChanged());
     m_ui->comboCategoryDefaultPathChanged->setCurrentIndex(session->isDisableAutoTMMWhenDefaultSavePathChanged());
-    m_ui->checkTempFolder->setChecked(session->isTempPathEnabled());
-    m_ui->textTempPath->setEnabled(m_ui->checkTempFolder->isChecked());
-    m_ui->textTempPath->setEnabled(m_ui->checkTempFolder->isChecked());
-    m_ui->textTempPath->setSelectedPath(Utils::Fs::toNativePath(session->tempPath()));
     m_ui->checkAppendqB->setChecked(session->isAppendExtensionEnabled());
     m_ui->checkPreallocateAll->setChecked(session->isPreallocationEnabled());
 
