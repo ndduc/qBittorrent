@@ -35,6 +35,7 @@
 #include <QPalette>
 
 #include "base/bittorrent/session.h"
+#include "base/bittorrent/torrentcategory.h"
 #include "base/bittorrent/torrenthandle.h"
 #include "base/global.h"
 #include "base/torrentfilter.h"
@@ -199,7 +200,7 @@ QVariant TransferListModel::data(const QModelIndex &index, int role) const
     case TR_RATIO:
         return torrent->realRatio();
     case TR_CATEGORY:
-        return torrent->category();
+        return torrent->category()->fullName();
     case TR_TAGS: {
             QStringList tagsList = torrent->tags().toList();
             tagsList.sort();

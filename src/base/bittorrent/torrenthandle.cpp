@@ -61,6 +61,7 @@
 #include "base/utils/misc.h"
 #include "base/utils/string.h"
 #include "peerinfo.h"
+#include "torrentcategory.h"
 #include "session.h"
 #include "trackerentry.h"
 
@@ -180,7 +181,7 @@ TorrentHandle::TorrentHandle(Session *session, const libtorrent::torrent_handle 
     , m_useAutoTMM(params.savePath.isEmpty())
     , m_name(params.name)
     , m_savePath(Utils::Fs::toNativePath(params.savePath))
-    , m_category(params.category)
+    , m_category(nullptr)
     , m_tags(params.tags)
     , m_hasSeedStatus(params.hasSeedStatus)
     , m_ratioLimit(params.ratioLimit)
@@ -191,6 +192,8 @@ TorrentHandle::TorrentHandle(Session *session, const libtorrent::torrent_handle 
     , m_needsToSetFirstLastPiecePriority(false)
     , m_needsToStartForced(params.forced)
 {
+    setCategory(m_session->categories().value(params.category));
+
     if (m_useAutoTMM)
         m_savePath = Utils::Fs::toNativePath(m_session->categorySavePath(m_category));
 
@@ -539,22 +542,9 @@ qreal TorrentHandle::progress() const
     return m_nativeStatus.progress;
 }
 
-QString TorrentHandle::category() const
+TorrentCategory *TorrentHandle::category() const
 {
     return m_category;
-}
-
-bool TorrentHandle::belongsToCategory(const QString &category) const
-{
-    if (m_category.isEmpty()) return category.isEmpty();
-    if (!Session::isValidCategoryName(category)) return false;
-
-    if (m_category == category) return true;
-
-    if (m_session->isSubcategoriesEnabled() && m_category.startsWith(category + '/'))
-        return true;
-
-    return false;
 }
 
 QSet<QString> TorrentHandle::tags() const
@@ -1205,25 +1195,21 @@ void TorrentHandle::setName(const QString &name)
     }
 }
 
-bool TorrentHandle::setCategory(const QString &category)
+void TorrentHandle::setCategory(TorrentCategory *category)
 {
-    if (m_category != category) {
-        if (!category.isEmpty() && !m_session->categories().contains(category))
-            return false;
+    if (m_category == category)
+        return;
 
-        QString oldCategory = m_category;
-        m_category = category;
-        m_session->handleTorrentCategoryChanged(this, oldCategory);
+    TorrentCategory *oldCategory = m_category;
+    m_category = category;
+    m_session->handleTorrentCategoryChanged(this, oldCategory);
 
-        if (m_useAutoTMM) {
-            if (!m_session->isDisableAutoTMMWhenCategoryChanged())
-                move_impl(m_session->categorySavePath(m_category), true);
-            else
-                setAutoTMMEnabled(false);
-        }
+    if (m_useAutoTMM) {
+        if (!m_session->isDisableAutoTMMWhenCategoryChanged())
+            move_impl(m_session->categorySavePath(m_category), true);
+        else
+            setAutoTMMEnabled(false);
     }
-
-    return true;
 }
 
 void TorrentHandle::move(QString path)
@@ -1648,7 +1634,7 @@ void TorrentHandle::handleSaveResumeDataAlert(const libtorrent::save_resume_data
     resumeData["qBt-savePath"] = m_useAutoTMM ? "" : Profile::instance().toPortablePath(m_savePath).toStdString();
     resumeData["qBt-ratioLimit"] = static_cast<int>(m_ratioLimit * 1000);
     resumeData["qBt-seedingTimeLimit"] = m_seedingTimeLimit;
-    resumeData["qBt-category"] = m_category.toStdString();
+    resumeData["qBt-category"] = m_category->name().toStdString();
     resumeData["qBt-tags"] = setToEntryList(m_tags);
     resumeData["qBt-name"] = m_name.toStdString();
     resumeData["qBt-seedStatus"] = m_hasSeedStatus;

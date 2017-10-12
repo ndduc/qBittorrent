@@ -83,8 +83,9 @@ namespace libtorrent
 namespace BitTorrent
 {
     struct PeerAddress;
-    class Session;
     class PeerInfo;
+    class Session;
+    class TorrentCategory;
     class TrackerEntry;
     struct AddTorrentParams;
 
@@ -240,9 +241,8 @@ namespace BitTorrent
 
         bool isAutoTMMEnabled() const;
         void setAutoTMMEnabled(bool enabled);
-        QString category() const;
-        bool belongsToCategory(const QString &category) const;
-        bool setCategory(const QString &category);
+        TorrentCategory *category() const;
+        void setCategory(TorrentCategory *category);
 
         QSet<QString> tags() const;
         bool hasTag(const QString &tag) const;
@@ -451,7 +451,7 @@ namespace BitTorrent
         // Persistent data
         QString m_name;
         QString m_savePath;
-        QString m_category;
+        TorrentCategory *m_category;
         QSet<QString> m_tags;
         bool m_hasSeedStatus;
         qreal m_ratioLimit;

@@ -61,6 +61,7 @@
 #endif // DISABLE_GUI
 
 #include "base/bittorrent/session.h"
+#include "base/bittorrent/torrentcategory.h"
 #include "base/bittorrent/torrenthandle.h"
 #include "base/exceptions.h"
 #include "base/iconprovider.h"
@@ -281,7 +282,7 @@ void Application::runExternalProgram(const BitTorrent::TorrentHandle *torrent) c
 {
     QString program = Preferences::instance()->getAutoRunProgram().trimmed();
     program.replace("%N", torrent->name());
-    program.replace("%L", torrent->category());
+    program.replace("%L", torrent->category()->fullName());
 
     QStringList tags = torrent->tags().toList();
     std::sort(tags.begin(), tags.end(), Utils::String::naturalLessThan<Qt::CaseInsensitive>);

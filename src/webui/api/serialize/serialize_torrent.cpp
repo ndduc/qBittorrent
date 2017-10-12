@@ -29,6 +29,7 @@
 #include "serialize_torrent.h"
 
 #include "base/bittorrent/session.h"
+#include "base/bittorrent/torrentcategory.h"
 #include "base/bittorrent/torrenthandle.h"
 #include "base/utils/fs.h"
 #include "base/utils/string.h"
@@ -106,7 +107,7 @@ QVariantMap serialize(const BitTorrent::TorrentHandle &torrent)
     ret[KEY_TORRENT_SEQUENTIAL_DOWNLOAD] = torrent.isSequentialDownload();
     if (torrent.hasMetadata())
         ret[KEY_TORRENT_FIRST_LAST_PIECE_PRIO] = torrent.hasFirstLastPiecePriority();
-    ret[KEY_TORRENT_CATEGORY] = torrent.category();
+    ret[KEY_TORRENT_CATEGORY] = torrent.category()->fullName();
     ret[KEY_TORRENT_TAGS] = torrent.tags().toList().join(", ");
     ret[KEY_TORRENT_SUPER_SEEDING] = torrent.superSeeding();
     ret[KEY_TORRENT_FORCE_START] = torrent.isForced();

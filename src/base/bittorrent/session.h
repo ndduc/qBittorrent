@@ -134,6 +134,7 @@ enum TorrentExportFolder
 namespace BitTorrent
 {
     class InfoHash;
+    class TorrentCategory;
     class TorrentHandle;
     class Tracker;
     class MagnetUri;
@@ -261,11 +262,11 @@ namespace BitTorrent
         // returns category itself and all top level categories
         static QStringList expandCategory(const QString &category);
 
-        const QStringMap &categories() const;
-        QString categorySavePath(const QString &categoryName) const;
-        bool addCategory(const QString &name, const QString &savePath = "");
-        bool editCategory(const QString &name, const QString &savePath);
-        bool removeCategory(const QString &name);
+        QHash<QString, TorrentCategory *> categories() const;
+        QString categorySavePath(const TorrentCategory *category) const;
+        TorrentCategory *addCategory(const QString &name, const QString &savePath = "");
+        void removeCategory(const QString &name);
+        void removeCategory(TorrentCategory *category);
         bool isSubcategoriesEnabled() const;
         void setSubcategoriesEnabled(bool value);
 
@@ -485,7 +486,7 @@ namespace BitTorrent
         void handleTorrentShareLimitChanged(TorrentHandle *const torrent);
         void handleTorrentNameChanged(TorrentHandle *const torrent);
         void handleTorrentSavePathChanged(TorrentHandle *const torrent);
-        void handleTorrentCategoryChanged(TorrentHandle *const torrent, const QString &oldCategory);
+        void handleTorrentCategoryChanged(TorrentHandle *const torrent, TorrentCategory *oldCategory);
         void handleTorrentTagAdded(TorrentHandle *const torrent, const QString &tag);
         void handleTorrentTagRemoved(TorrentHandle *const torrent, const QString &tag);
         void handleTorrentSavingModeChanged(TorrentHandle *const torrent);
@@ -518,7 +519,7 @@ namespace BitTorrent
         void torrentFinished(BitTorrent::TorrentHandle *const torrent);
         void torrentFinishedChecking(BitTorrent::TorrentHandle *const torrent);
         void torrentSavePathChanged(BitTorrent::TorrentHandle *const torrent);
-        void torrentCategoryChanged(BitTorrent::TorrentHandle *const torrent, const QString &oldCategory);
+        void torrentCategoryChanged(BitTorrent::TorrentHandle *const torrent, TorrentCategory *oldCategory);
         void torrentTagAdded(TorrentHandle *const torrent, const QString &tag);
         void torrentTagRemoved(TorrentHandle *const torrent, const QString &tag);
         void torrentSavingModeChanged(BitTorrent::TorrentHandle *const torrent);
@@ -539,8 +540,8 @@ namespace BitTorrent
         void trackerlessStateChanged(BitTorrent::TorrentHandle *const torrent, bool trackerless);
         void downloadFromUrlFailed(const QString &url, const QString &reason);
         void downloadFromUrlFinished(const QString &url);
-        void categoryAdded(const QString &categoryName);
-        void categoryRemoved(const QString &categoryName);
+        void categoryAdded(BitTorrent::TorrentCategory *category);
+        void categoryAboutToBeRemoved(BitTorrent::TorrentCategory *category);
         void subcategoriesSupportChanged();
         void tagAdded(const QString &tag);
         void tagRemoved(const QString &tag);
@@ -601,6 +602,7 @@ namespace BitTorrent
         void enableIPFilter();
         void disableIPFilter();
 
+        void removeCategory_impl(TorrentCategory *category);
         bool addTorrent_impl(CreateTorrentParams params, const MagnetUri &magnetUri,
                              TorrentInfo torrentInfo = TorrentInfo(),
                              const QByteArray &fastresumeData = QByteArray());
@@ -632,6 +634,7 @@ namespace BitTorrent
 #endif
 
         void createTorrentHandle(const libtorrent::torrent_handle &nativeHandle);
+        void handleCategorySavePathChanged(TorrentCategory *category);
 
         void saveResumeData();
         void saveTorrentsQueue();
@@ -768,7 +771,7 @@ namespace BitTorrent
         QHash<QString, AddTorrentParams> m_downloadedTorrents;
         QHash<InfoHash, RemovingTorrentData> m_removingTorrents;
         TorrentStatusReport m_torrentStatusReport;
-        QStringMap m_categories;
+        QHash<QString, TorrentCategory *> m_categories;
         QSet<QString> m_tags;
 
         // I/O errored torrents

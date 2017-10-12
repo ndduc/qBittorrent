@@ -28,6 +28,8 @@
 
 #include "torrentfilter.h"
 
+#include "bittorrent/session.h"
+#include "bittorrent/torrentcategory.h"
 #include "bittorrent/torrenthandle.h"
 
 const QString TorrentFilter::AnyCategory;
@@ -51,7 +53,7 @@ TorrentFilter::TorrentFilter()
 {
 }
 
-TorrentFilter::TorrentFilter(const Type type, const QStringSet &hashSet, const QString &category, const QString &tag)
+TorrentFilter::TorrentFilter(const Type type, const QStringSet &hashSet, const OptionalTorrentCategory &category, const QString &tag)
     : m_type(type)
     , m_category(category)
     , m_tag(tag)
@@ -59,7 +61,7 @@ TorrentFilter::TorrentFilter(const Type type, const QStringSet &hashSet, const Q
 {
 }
 
-TorrentFilter::TorrentFilter(const QString &filter, const QStringSet &hashSet, const QString &category, const QString &tag)
+TorrentFilter::TorrentFilter(const QString &filter, const QStringSet &hashSet, const OptionalTorrentCategory &category, const QString &tag)
     : m_type(All)
     , m_category(category)
     , m_tag(tag)
@@ -180,7 +182,8 @@ bool TorrentFilter::matchHash(const BitTorrent::TorrentHandle *const torrent) co
 bool TorrentFilter::matchCategory(const BitTorrent::TorrentHandle *const torrent) const
 {
     if (m_category.isNull()) return true;
-    else return (torrent->belongsToCategory(m_category));
+
+    return (torrent->belongsToCategory(m_category));
 }
 
 bool TorrentFilter::matchTag(const BitTorrent::TorrentHandle *const torrent) const

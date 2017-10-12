@@ -90,6 +90,7 @@
 #include "private/filterparserthread.h"
 #include "private/resumedatasavingmanager.h"
 #include "private/statistics.h"
+#include "torrentcategory.h"
 #include "torrenthandle.h"
 #include "tracker.h"
 #include "trackerentry.h"
@@ -124,19 +125,11 @@ namespace
     QString convertIfaceNameToGuid(const QString &name);
 #endif
 
-    QStringMap map_cast(const QVariantMap &map)
-    {
-        QStringMap result;
-        for (auto i = map.cbegin(); i != map.cend(); ++i)
-            result[i.key()] = i.value().toString();
-        return result;
-    }
-
-    QVariantMap map_cast(const QStringMap &map)
+    QVariantMap map_cast(const QHash<QString, TorrentCategory *> &map)
     {
         QVariantMap result;
         for (auto i = map.cbegin(); i != map.cend(); ++i)
-            result[i.key()] = i.value();
+            result[i.key()] = i.value()->savePath();
         return result;
     }
 
@@ -194,9 +187,9 @@ namespace
         return normalizePath(path);
     }
 
-    QStringMap expandCategories(const QStringMap &categories)
+    QVariantMap expandCategories(const QVariantMap &categories)
     {
-        QStringMap expanded = categories;
+        QVariantMap expanded = categories;
 
         for (auto i = categories.cbegin(); i != categories.cend(); ++i) {
             const QString &category = i.key();
@@ -504,11 +497,16 @@ Session::Session(QObject *parent)
         m_nativeSession->set_ip_filter(filter);
     }
 
-    m_categories = map_cast(m_storedCategories);
     if (isSubcategoriesEnabled()) {
         // if subcategories support changed manually
-        m_categories = expandCategories(m_categories);
-        m_storedCategories = map_cast(m_categories);
+        m_storedCategories = expandCategories(m_storedCategories);
+    }
+    QVariantMap categories = m_storedCategories;
+    for (auto i = categories.cbegin(); i != categories.cend(); ++i) {
+        if (m_categories.contains(i.key()))
+            m_categories[i.key()]->setSavePath(i.value().toString());
+        else
+            addCategory(i.key(), i.value().toString());
     }
 
     m_tags = QSet<QString>::fromList(m_storedTags.value());
@@ -727,19 +725,19 @@ QStringList Session::expandCategory(const QString &category)
     return result;
 }
 
-const QStringMap &Session::categories() const
+QHash<QString, TorrentCategory *> Session::categories() const
 {
     return m_categories;
 }
 
-QString Session::categorySavePath(const QString &categoryName) const
+QString Session::categorySavePath(const TorrentCategory *category) const
 {
     QString basePath = m_defaultSavePath;
-    if (categoryName.isEmpty()) return basePath;
+    if (!category) return basePath;
 
-    QString path = m_categories.value(categoryName);
+    QString path = category->savePath();
     if (path.isEmpty()) // use implicit save path
-        path = Utils::Fs::toValidFileSystemName(categoryName, true);
+        path = Utils::Fs::toValidFileSystemName(category->fullName(), true);
 
     if (!QDir::isAbsolutePath(path))
         path.prepend(basePath);
@@ -747,80 +745,89 @@ QString Session::categorySavePath(const QString &categoryName) const
     return normalizeSavePath(path);
 }
 
-bool Session::addCategory(const QString &name, const QString &savePath)
+TorrentCategory *Session::addCategory(const QString &name, const QString &savePath)
 {
-    if (name.isEmpty()) return false;
-    if (!isValidCategoryName(name) || m_categories.contains(name))
-        return false;
+    if (name.isEmpty())
+        throw RuntimeError {tr("Category name cannot be empty.")};
+    if (!isValidCategoryName(name))
+        throw RuntimeError {tr("Invalid category name.")};
+    if (m_categories.contains(name))
+        throw RuntimeError {tr("Category with the given name already exists.")};
+
+    TorrentCategory *parentCategory = nullptr;
+    QString relName = name;
 
     if (isSubcategoriesEnabled()) {
-        for (const QString &parent : asConst(expandCategory(name))) {
-            if ((parent != name) && !m_categories.contains(parent)) {
-                m_categories[parent] = "";
-                emit categoryAdded(parent);
-            }
+        int pos = name.lastIndexOf('/');
+        if (pos > 0) {
+            relName = name.right(name.size() - (pos + 1));
+            const QString parentName = name.left(pos);
+            parentCategory = m_categories.value(parentName);
+            if (!parentCategory)
+                parentCategory = addCategory(parentName);
         }
     }
 
-    m_categories[name] = savePath;
+    auto *category = new TorrentCategory {this, parentCategory, relName, savePath};
+    connect(category, &TorrentCategory::savePathChanged, this, [this, &category]()
+    {
+        handleCategorySavePathChanged(category);
+    });
+    m_categories.insert(name, category);
     m_storedCategories = map_cast(m_categories);
-    emit categoryAdded(name);
+    emit categoryAdded(category);
 
-    return true;
+    return category;
 }
 
-bool Session::editCategory(const QString &name, const QString &savePath)
+void Session::removeCategory(const QString &name)
 {
-    if (!m_categories.contains(name)) return false;
-    if (categorySavePath(name) == savePath) return false;
+    TorrentCategory *category = m_categories.value(name);
+    if (!category)
+        throw RuntimeError {tr("Category doesn't exist.")};
 
-    m_categories[name] = savePath;
+    removeCategory(category);
+}
+
+void Session::removeCategory(TorrentCategory *category)
+{
+    Q_ASSERT(category);
+
+    emit categoryAboutToBeRemoved(category);
+
+    removeCategory_impl(category);
+    // update stored categories
     m_storedCategories = map_cast(m_categories);
+}
+
+void Session::removeCategory_impl(TorrentCategory *category)
+{
+    for (TorrentCategory *subcategory : asConst(category->subcategories()))
+        removeCategory_impl(subcategory);
+
+    for (TorrentHandle *const torrent : asConst(torrents())) {
+        if (torrent->category() == category)
+            torrent->setCategory(nullptr);
+    }
+
+    m_categories.remove(category->fullName());
+    delete category;
+}
+
+void Session::handleCategorySavePathChanged(TorrentCategory *category)
+{
+    m_storedCategories = map_cast(m_categories);
+
     if (isDisableAutoTMMWhenCategorySavePathChanged()) {
         for (TorrentHandle *const torrent : asConst(torrents()))
-            if (torrent->category() == name)
+            if (torrent->category() == category)
                 torrent->setAutoTMMEnabled(false);
     }
     else {
         for (TorrentHandle *const torrent : asConst(torrents()))
-            if (torrent->category() == name)
+            if (torrent->category() == category)
                 torrent->handleCategorySavePathChanged();
     }
-
-    return true;
-}
-
-bool Session::removeCategory(const QString &name)
-{
-    for (TorrentHandle *const torrent : asConst(torrents()))
-        if (torrent->belongsToCategory(name))
-            torrent->setCategory("");
-
-    // remove stored category and its subcategories if exist
-    bool result = false;
-    if (isSubcategoriesEnabled()) {
-        // remove subcategories
-        const QString test = name + '/';
-        Dict::removeIf(m_categories, [this, &test, &result](const QString &category, const QString &)
-        {
-            if (category.startsWith(test)) {
-                result = true;
-                emit categoryRemoved(category);
-                return true;
-            }
-            return false;
-        });
-    }
-
-    result = (m_categories.remove(name) > 0) || result;
-
-    if (result) {
-        // update stored categories
-        m_storedCategories = map_cast(m_categories);
-        emit categoryRemoved(name);
-    }
-
-    return result;
 }
 
 bool Session::isSubcategoriesEnabled() const
@@ -832,18 +839,27 @@ void Session::setSubcategoriesEnabled(bool value)
 {
     if (isSubcategoriesEnabled() == value) return;
 
-    if (value) {
+    m_isSubcategoriesEnabled = value;
+
+    if (m_isSubcategoriesEnabled) {
         // expand categories to include all parent categories
-        m_categories = expandCategories(m_categories);
-        // update stored categories
-        m_storedCategories = map_cast(m_categories);
+        m_storedCategories = expandCategories(m_storedCategories);
+
+        QVariantMap categories = m_storedCategories;
+        for (auto i = categories.cbegin(); i != categories.cend(); ++i) {
+            if (m_categories.contains(i.key()))
+                m_categories[i.key()]->setSavePath(i.value().toString());
+            else
+                addCategory(i.key(), i.value().toString());
+        }
     }
     else {
-        // reload categories
-        m_categories = map_cast(m_storedCategories);
+        for (TorrentCategory *category : m_categories) {
+            category->m_subcategories.clear();
+            category->m_parentCategory = nullptr;
+        }
     }
 
-    m_isSubcategoriesEnabled = value;
     emit subcategoriesSupportChanged();
 }
 
@@ -2134,15 +2150,10 @@ bool Session::addTorrent_impl(CreateTorrentParams params, const MagnetUri &magne
 {
     params.savePath = normalizeSavePath(params.savePath, "");
 
-    if (!params.category.isEmpty()) {
-        if (!m_categories.contains(params.category) && !addCategory(params.category)) {
-            qWarning() << "Couldn't create category" << params.category;
-            params.category = "";
-        }
-    }
-
     // If empty then Automatic mode, otherwise Manual mode
-    QString savePath = params.savePath.isEmpty() ? categorySavePath(params.category) : params.savePath;
+    QString savePath = params.savePath.isEmpty()
+                       ? categorySavePath(m_categories.value(params.category))
+                       : params.savePath;
     libt::add_torrent_params p;
     InfoHash hash;
     const bool fromMagnetUri = magnetUri.isValid();
@@ -3618,7 +3629,7 @@ void Session::handleTorrentSavePathChanged(TorrentHandle *const torrent)
     emit torrentSavePathChanged(torrent);
 }
 
-void Session::handleTorrentCategoryChanged(TorrentHandle *const torrent, const QString &oldCategory)
+void Session::handleTorrentCategoryChanged(TorrentHandle *const torrent, TorrentCategory *oldCategory)
 {
     saveTorrentResumeData(torrent);
     emit torrentCategoryChanged(torrent, oldCategory);

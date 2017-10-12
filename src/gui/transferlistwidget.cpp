@@ -42,6 +42,7 @@
 #include <QWidgetAction>
 
 #include "base/bittorrent/session.h"
+#include "base/bittorrent/torrentcategory.h"
 #include "base/bittorrent/torrenthandle.h"
 #include "base/global.h"
 #include "base/logger.h"
@@ -959,9 +960,10 @@ void TransferListWidget::displayListMenu(const QPoint&)
         torrent = m_listModel->torrentHandle(mapToSource(index));
         if (!torrent) continue;
 
+        const QString categoryName = torrent->category()->fullName();
         if (firstCategory.isEmpty() && first)
-            firstCategory = torrent->category();
-        if (firstCategory != torrent->category())
+            firstCategory = categoryName;
+        if (firstCategory != categoryName)
             allSameCategory = false;
 
         tagsInAny.unite(torrent->tags());
