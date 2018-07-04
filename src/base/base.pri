@@ -1,5 +1,6 @@
 HEADERS += \
     $$PWD/algorithm.h \
+    $$PWD/application.h \
     $$PWD/asyncfilestorage.h \
     $$PWD/bittorrent/addtorrentparams.h  \
     $$PWD/bittorrent/cachestatus.h \
@@ -74,6 +75,7 @@ HEADERS += \
     $$PWD/utils/version.h
 
 SOURCES += \
+    $$PWD/application.cpp \
     $$PWD/asyncfilestorage.cpp \
     $$PWD/bittorrent/infohash.cpp \
     $$PWD/bittorrent/magneturi.cpp \

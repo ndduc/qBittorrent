@@ -150,8 +150,6 @@ namespace
     }
 }
 
-SettingsStorage *SettingsStorage::m_instance = nullptr;
-
 SettingsStorage::SettingsStorage()
     : m_data{TransactionalSettings(QLatin1String("qBittorrent")).read()}
     , m_dirty(false)
@@ -165,23 +163,6 @@ SettingsStorage::SettingsStorage()
 SettingsStorage::~SettingsStorage()
 {
     save();
-}
-
-void SettingsStorage::initInstance()
-{
-    if (!m_instance)
-        m_instance = new SettingsStorage;
-}
-
-void SettingsStorage::freeInstance()
-{
-    delete m_instance;
-    m_instance = nullptr;
-}
-
-SettingsStorage *SettingsStorage::instance()
-{
-    return m_instance;
 }
 
 bool SettingsStorage::save()

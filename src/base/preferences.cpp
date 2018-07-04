@@ -57,28 +57,7 @@
 #include "utils/fs.h"
 #include "utils/misc.h"
 
-Preferences *Preferences::m_instance = nullptr;
-
 Preferences::Preferences() = default;
-
-Preferences *Preferences::instance()
-{
-    return m_instance;
-}
-
-void Preferences::initInstance()
-{
-    if (!m_instance)
-        m_instance = new Preferences;
-}
-
-void Preferences::freeInstance()
-{
-    if (m_instance) {
-        delete m_instance;
-        m_instance = nullptr;
-    }
-}
 
 const QVariant Preferences::value(const QString &key, const QVariant &defaultValue) const
 {

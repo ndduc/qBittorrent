@@ -1,7 +1,7 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2006  Christophe Dumez
+ * Copyright (C) 2015, 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,29 +27,16 @@
  * exception statement from your version.
  */
 
-#ifndef APPLICATION_H
-#define APPLICATION_H
+#pragma once
 
+#include <QObject>
 #include <QPointer>
-#include <QStringList>
-#include <QTranslator>
 
-#ifndef DISABLE_GUI
-#include "qtsingleapplication.h"
-typedef QtSingleApplication BaseApplication;
-class MainWindow;
-
-#ifdef Q_OS_WIN
-class QSessionManager;
-#endif // Q_OS_WIN
-
-#else
-#include "qtsinglecoreapplication.h"
-typedef QtSingleCoreApplication BaseApplication;
-#endif // DISABLE_GUI
-
-#include "base/utils/misc.h"
-#include "cmdoptions.h"
+#include "logger.h"
+#include "preferences.h"
+#include "profile.h"
+#include "settingsstorage.h"
+#include "types.h"
 
 #ifndef DISABLE_WEBUI
 class WebUI;
@@ -68,26 +55,21 @@ namespace RSS
     class AutoDownloader;
 }
 
-class Application : public BaseApplication
+class Application : public virtual QObject
 {
     Q_OBJECT
     Q_DISABLE_COPY(Application)
 
 public:
-    Application(const QString &id, int &argc, char **argv);
+    explicit Application(Profile *profile);
     ~Application() override;
 
- #if (defined(Q_OS_WIN) && !defined(DISABLE_GUI))
-    bool isRunning();
-#endif
-    int exec(const QStringList &params);
-    bool sendParams(const QStringList &params);
+    static Application *instance();
 
-#ifndef DISABLE_GUI
-    QPointer<MainWindow> mainWindow();
-#endif
-
-    const QBtCommandLineParameters &commandLineArgs() const;
+    Logger *log() const;
+    Preferences *preferences() const;
+    Profile *profile() const;
+    SettingsStorage *settings() const;
 
     // FileLogger properties
     bool isFileLoggerEnabled() const;
@@ -99,37 +81,30 @@ public:
     bool isFileLoggerDeleteOld() const;
     void setFileLoggerDeleteOld(bool value);
     int fileLoggerMaxSize() const;
-    void setFileLoggerMaxSize(const int bytes);
+    void setFileLoggerMaxSize(int bytes);
     int fileLoggerAge() const;
-    void setFileLoggerAge(const int value);
+    void setFileLoggerAge(int value);
     int fileLoggerAgeType() const;
-    void setFileLoggerAgeType(const int value);
+    void setFileLoggerAgeType(int value);
 
 protected:
-#ifndef DISABLE_GUI
-#ifdef Q_OS_MAC
-    bool event(QEvent *) override;
-#endif
-    bool notify(QObject *receiver, QEvent *event) override;
-#endif
+    ShutdownAction shutdownAction() const;
+    virtual void cleanup();
+    virtual bool confirmShutdown() const = 0;
+    virtual void shutdown() = 0;
 
 private slots:
-    void processMessage(const QString &message);
     void torrentFinished(BitTorrent::TorrentHandle *const torrent);
     void allTorrentsFinished();
-    void cleanup();
-#if (!defined(DISABLE_GUI) && defined(Q_OS_WIN))
-    void shutdownCleanup(QSessionManager &manager);
-#endif
 
 private:
-    bool m_running;
-    ShutdownDialogAction m_shutdownAct;
-    QBtCommandLineParameters m_commandLineArgs;
+    void runExternalProgram(const BitTorrent::TorrentHandle *torrent) const;
+    void sendNotificationEmail(const BitTorrent::TorrentHandle *torrent);
 
-#ifndef DISABLE_GUI
-    QPointer<MainWindow> m_window;
-#endif
+    Logger *m_log;
+    Preferences *m_preferences;
+    Profile *m_profile;
+    SettingsStorage *m_settings;
 
 #ifndef DISABLE_WEBUI
     WebUI *m_webui;
@@ -138,15 +113,10 @@ private:
     // FileLog
     QPointer<FileLogger> m_fileLogger;
 
-    QTranslator m_qtTranslator;
-    QTranslator m_translator;
-    QStringList m_paramsQueue;
+    ShutdownAction m_shutdownAction;
 
-    void initializeTranslation();
-    void processParams(const QStringList &params);
-    void runExternalProgram(const BitTorrent::TorrentHandle *torrent) const;
-    void sendNotificationEmail(const BitTorrent::TorrentHandle *torrent);
-    void validateCommandLineParameters();
+    static Application *m_instance;
 };
 
-#endif // APPLICATION_H
+// Helper function
+void LogMsg(const QString &message, const Log::MsgType &type = Log::NORMAL);

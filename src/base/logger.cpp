@@ -3,8 +3,6 @@
 #include <QDateTime>
 #include "base/utils/string.h"
 
-Logger *Logger::m_instance = nullptr;
-
 Logger::Logger()
     : m_lock(QReadWriteLock::Recursive)
     , m_msgCounter(0)
@@ -13,25 +11,6 @@ Logger::Logger()
 }
 
 Logger::~Logger() {}
-
-Logger *Logger::instance()
-{
-    return m_instance;
-}
-
-void Logger::initInstance()
-{
-    if (!m_instance)
-        m_instance = new Logger;
-}
-
-void Logger::freeInstance()
-{
-    if (m_instance) {
-        delete m_instance;
-        m_instance = nullptr;
-    }
-}
 
 void Logger::addMessage(const QString &message, const Log::MsgType &type)
 {
@@ -89,9 +68,4 @@ QVector<Log::Peer> Logger::getPeers(int lastKnownId) const
         return QVector<Log::Peer>();
 
     return m_peers.mid(size - diff);
-}
-
-void LogMsg(const QString &message, const Log::MsgType &type)
-{
-    Logger::instance()->addMessage(message, type);
 }

@@ -15,12 +15,12 @@ usesystemqtsingleapplication {
 }
 
 HEADERS += \
-    $$PWD/application.h \
+    $$PWD/applicationimpl.h \
     $$PWD/cmdoptions.h \
     $$PWD/filelogger.h
 
 SOURCES += \
-    $$PWD/application.cpp \
+    $$PWD/applicationimpl.cpp \
     $$PWD/cmdoptions.cpp \
     $$PWD/filelogger.cpp \
     $$PWD/main.cpp

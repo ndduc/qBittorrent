@@ -27,7 +27,7 @@
  * exception statement from your version.
  */
 
-#include "application.h"
+#include "applicationimpl.h"
 
 #include <algorithm>
 
@@ -112,10 +112,10 @@ namespace
     const int DEFAULT_FILELOG_SIZE = 65 * 1024; // 65KiB
 }
 
-Application::Application(const QString &id, int &argc, char **argv)
+ApplicationImpl::ApplicationImpl(const QString &id, int &argc, char **argv)
     : BaseApplication(id, argc, argv)
     , m_running(false)
-    , m_shutdownAct(ShutdownDialogAction::Exit)
+    , m_shutdownAct(ShutdownAction::Exit)
     , m_commandLineArgs(parseCommandLine(this->arguments()))
 #ifndef DISABLE_WEBUI
     , m_webui(nullptr)
@@ -148,11 +148,11 @@ Application::Application(const QString &id, int &argc, char **argv)
 #endif
 
 #if defined(Q_OS_WIN) && !defined(DISABLE_GUI)
-    connect(this, &QGuiApplication::commitDataRequest, this, &Application::shutdownCleanup, Qt::DirectConnection);
+    connect(this, &QGuiApplication::commitDataRequest, this, &ApplicationImpl::shutdownCleanup, Qt::DirectConnection);
 #endif
 
-    connect(this, &Application::messageReceived, this, &Application::processMessage);
-    connect(this, &QCoreApplication::aboutToQuit, this, &Application::cleanup);
+    connect(this, &ApplicationImpl::messageReceived, this, &ApplicationImpl::processMessage);
+    connect(this, &QCoreApplication::aboutToQuit, this, &ApplicationImpl::cleanup);
 
     if (isFileLoggerEnabled())
         m_fileLogger = new FileLogger(fileLoggerPath(), isFileLoggerBackup(), fileLoggerMaxSize(), isFileLoggerDeleteOld(), fileLoggerAge(), static_cast<FileLogger::FileLogAgeType>(fileLoggerAgeType()));
@@ -160,7 +160,7 @@ Application::Application(const QString &id, int &argc, char **argv)
     Logger::instance()->addMessage(tr("qBittorrent %1 started", "qBittorrent v3.2.0alpha started").arg(QBT_VERSION));
 }
 
-Application::~Application()
+ApplicationImpl::~ApplicationImpl()
 {
     // we still need to call cleanup()
     // in case the App failed to start
@@ -168,23 +168,23 @@ Application::~Application()
 }
 
 #ifndef DISABLE_GUI
-QPointer<MainWindow> Application::mainWindow()
+QPointer<MainWindow> ApplicationImpl::mainWindow()
 {
     return m_window;
 }
 #endif
 
-const QBtCommandLineParameters &Application::commandLineArgs() const
+const QBtCommandLineParameters &ApplicationImpl::commandLineArgs() const
 {
     return m_commandLineArgs;
 }
 
-bool Application::isFileLoggerEnabled() const
+bool ApplicationImpl::isFileLoggerEnabled() const
 {
     return settings()->loadValue(KEY_FILELOGGER_ENABLED, true).toBool();
 }
 
-void Application::setFileLoggerEnabled(bool value)
+void ApplicationImpl::setFileLoggerEnabled(bool value)
 {
     if (value && !m_fileLogger)
         m_fileLogger = new FileLogger(fileLoggerPath(), isFileLoggerBackup(), fileLoggerMaxSize(), isFileLoggerDeleteOld(), fileLoggerAge(), static_cast<FileLogger::FileLogAgeType>(fileLoggerAgeType()));
@@ -193,50 +193,50 @@ void Application::setFileLoggerEnabled(bool value)
     settings()->storeValue(KEY_FILELOGGER_ENABLED, value);
 }
 
-QString Application::fileLoggerPath() const
+QString ApplicationImpl::fileLoggerPath() const
 {
     return settings()->loadValue(KEY_FILELOGGER_PATH,
             QVariant(specialFolderLocation(SpecialFolder::Data) + LOG_FOLDER)).toString();
 }
 
-void Application::setFileLoggerPath(const QString &path)
+void ApplicationImpl::setFileLoggerPath(const QString &path)
 {
     if (m_fileLogger)
         m_fileLogger->changePath(path);
     settings()->storeValue(KEY_FILELOGGER_PATH, path);
 }
 
-bool Application::isFileLoggerBackup() const
+bool ApplicationImpl::isFileLoggerBackup() const
 {
     return settings()->loadValue(KEY_FILELOGGER_BACKUP, true).toBool();
 }
 
-void Application::setFileLoggerBackup(bool value)
+void ApplicationImpl::setFileLoggerBackup(bool value)
 {
     if (m_fileLogger)
         m_fileLogger->setBackup(value);
     settings()->storeValue(KEY_FILELOGGER_BACKUP, value);
 }
 
-bool Application::isFileLoggerDeleteOld() const
+bool ApplicationImpl::isFileLoggerDeleteOld() const
 {
     return settings()->loadValue(KEY_FILELOGGER_DELETEOLD, true).toBool();
 }
 
-void Application::setFileLoggerDeleteOld(bool value)
+void ApplicationImpl::setFileLoggerDeleteOld(bool value)
 {
     if (value && m_fileLogger)
         m_fileLogger->deleteOld(fileLoggerAge(), static_cast<FileLogger::FileLogAgeType>(fileLoggerAgeType()));
     settings()->storeValue(KEY_FILELOGGER_DELETEOLD, value);
 }
 
-int Application::fileLoggerMaxSize() const
+int ApplicationImpl::fileLoggerMaxSize() const
 {
     int val = settings()->loadValue(KEY_FILELOGGER_MAXSIZEBYTES, DEFAULT_FILELOG_SIZE).toInt();
     return std::min(std::max(val, MIN_FILELOG_SIZE), MAX_FILELOG_SIZE);
 }
 
-void Application::setFileLoggerMaxSize(const int bytes)
+void ApplicationImpl::setFileLoggerMaxSize(const int bytes)
 {
     int clampedValue = std::min(std::max(bytes, MIN_FILELOG_SIZE), MAX_FILELOG_SIZE);
     if (m_fileLogger)
@@ -244,29 +244,29 @@ void Application::setFileLoggerMaxSize(const int bytes)
     settings()->storeValue(KEY_FILELOGGER_MAXSIZEBYTES, clampedValue);
 }
 
-int Application::fileLoggerAge() const
+int ApplicationImpl::fileLoggerAge() const
 {
     int val = settings()->loadValue(KEY_FILELOGGER_AGE, 1).toInt();
     return std::min(std::max(val, 1), 365);
 }
 
-void Application::setFileLoggerAge(const int value)
+void ApplicationImpl::setFileLoggerAge(const int value)
 {
     settings()->storeValue(KEY_FILELOGGER_AGE, std::min(std::max(value, 1), 365));
 }
 
-int Application::fileLoggerAgeType() const
+int ApplicationImpl::fileLoggerAgeType() const
 {
     int val = settings()->loadValue(KEY_FILELOGGER_AGETYPE, 1).toInt();
     return ((val < 0) || (val > 2)) ? 1 : val;
 }
 
-void Application::setFileLoggerAgeType(const int value)
+void ApplicationImpl::setFileLoggerAgeType(const int value)
 {
     settings()->storeValue(KEY_FILELOGGER_AGETYPE, ((value < 0) || (value > 2)) ? 1 : value);
 }
 
-void Application::processMessage(const QString &message)
+void ApplicationImpl::processMessage(const QString &message)
 {
     QStringList params = message.split(QLatin1String(PARAMS_SEPARATOR), QString::SkipEmptyParts);
     // If Application is not running (i.e., other
@@ -277,7 +277,7 @@ void Application::processMessage(const QString &message)
         m_paramsQueue.append(params);
 }
 
-void Application::runExternalProgram(const BitTorrent::TorrentHandle *torrent) const
+void ApplicationImpl::runExternalProgram(const BitTorrent::TorrentHandle *torrent) const
 {
     QString program = Preferences::instance()->getAutoRunProgram().trimmed();
     program.replace("%N", torrent->name());
@@ -332,7 +332,7 @@ void Application::runExternalProgram(const BitTorrent::TorrentHandle *torrent) c
 #endif
 }
 
-void Application::sendNotificationEmail(const BitTorrent::TorrentHandle *torrent)
+void ApplicationImpl::sendNotificationEmail(const BitTorrent::TorrentHandle *torrent)
 {
     // Prepare mail content
     const QString content = tr("Torrent name: %1").arg(torrent->name()) + '\n'
@@ -351,7 +351,7 @@ void Application::sendNotificationEmail(const BitTorrent::TorrentHandle *torrent
                      content);
 }
 
-void Application::torrentFinished(BitTorrent::TorrentHandle *const torrent)
+void ApplicationImpl::torrentFinished(BitTorrent::TorrentHandle *const torrent)
 {
     Preferences *const pref = Preferences::instance();
 
@@ -366,7 +366,7 @@ void Application::torrentFinished(BitTorrent::TorrentHandle *const torrent)
     }
 }
 
-void Application::allTorrentsFinished()
+void ApplicationImpl::allTorrentsFinished()
 {
     Preferences *const pref = Preferences::instance();
     bool isExit = pref->shutdownqBTWhenDownloadsComplete();
@@ -377,17 +377,17 @@ void Application::allTorrentsFinished()
     bool haveAction = isExit || isShutdown || isSuspend || isHibernate;
     if (!haveAction) return;
 
-    ShutdownDialogAction action = ShutdownDialogAction::Exit;
+    ShutdownAction action = ShutdownAction::Exit;
     if (isSuspend)
-        action = ShutdownDialogAction::Suspend;
+        action = ShutdownAction::Suspend;
     else if (isHibernate)
-        action = ShutdownDialogAction::Hibernate;
+        action = ShutdownAction::Hibernate;
     else if (isShutdown)
-        action = ShutdownDialogAction::Shutdown;
+        action = ShutdownAction::Shutdown;
 
 #ifndef DISABLE_GUI
     // ask confirm
-    if ((action == ShutdownDialogAction::Exit) && (pref->dontConfirmAutoExit())) {
+    if ((action == ShutdownAction::Exit) && (pref->dontConfirmAutoExit())) {
         // do nothing & skip confirm
     }
     else {
@@ -396,7 +396,7 @@ void Application::allTorrentsFinished()
 #endif // DISABLE_GUI
 
     // Actually shut down
-    if (action != ShutdownDialogAction::Exit) {
+    if (action != ShutdownAction::Exit) {
         qDebug("Preparing for auto-shutdown because all downloads are complete!");
         // Disabling it for next time
         pref->setShutdownWhenDownloadsComplete(false);
@@ -410,7 +410,7 @@ void Application::allTorrentsFinished()
     exit();
 }
 
-bool Application::sendParams(const QStringList &params)
+bool ApplicationImpl::sendParams(const QStringList &params)
 {
     return sendMessage(params.join(QLatin1String(PARAMS_SEPARATOR)));
 }
@@ -419,7 +419,7 @@ bool Application::sendParams(const QStringList &params)
 // This function parse the parameters and call
 // the right addTorrent function, considering
 // the parameter type.
-void Application::processParams(const QStringList &params)
+void ApplicationImpl::processParams(const QStringList &params)
 {
 #ifndef DISABLE_GUI
     if (params.isEmpty()) {
@@ -487,7 +487,7 @@ void Application::processParams(const QStringList &params)
     }
 }
 
-int Application::exec(const QStringList &params)
+int ApplicationImpl::exec(const QStringList &params)
 {
     Net::ProxyConfigurationManager::initInstance();
     Net::DownloadManager::initInstance();
@@ -498,8 +498,8 @@ int Application::exec(const QStringList &params)
 #endif
 
     BitTorrent::Session::initInstance();
-    connect(BitTorrent::Session::instance(), &BitTorrent::Session::torrentFinished, this, &Application::torrentFinished);
-    connect(BitTorrent::Session::instance(), &BitTorrent::Session::allTorrentsFinished, this, &Application::allTorrentsFinished, Qt::QueuedConnection);
+    connect(BitTorrent::Session::instance(), &BitTorrent::Session::torrentFinished, this, &ApplicationImpl::torrentFinished);
+    connect(BitTorrent::Session::instance(), &BitTorrent::Session::allTorrentsFinished, this, &ApplicationImpl::allTorrentsFinished, Qt::QueuedConnection);
 
 #ifndef DISABLE_COUNTRIES_RESOLUTION
     Net::GeoIPManager::initInstance();
@@ -553,7 +553,7 @@ int Application::exec(const QStringList &params)
 
 #ifndef DISABLE_GUI
 #ifdef Q_OS_WIN
-bool Application::isRunning()
+bool ApplicationImpl::isRunning()
 {
     bool running = BaseApplication::isRunning();
     QSharedMemory *sharedMem = new QSharedMemory(id() + QLatin1String("-shared-memory-key"), this);
@@ -600,7 +600,7 @@ bool Application::event(QEvent *ev)
 }
 #endif // Q_OS_MAC
 
-bool Application::notify(QObject *receiver, QEvent *event)
+bool ApplicationImpl::notify(QObject *receiver, QEvent *event)
 {
     try {
         return QApplication::notify(receiver, event);
@@ -614,7 +614,7 @@ bool Application::notify(QObject *receiver, QEvent *event)
 }
 #endif // DISABLE_GUI
 
-void Application::initializeTranslation()
+void ApplicationImpl::initializeTranslation()
 {
     Preferences *const pref = Preferences::instance();
     // Load translation
@@ -646,7 +646,7 @@ void Application::initializeTranslation()
 }
 
 #if (!defined(DISABLE_GUI) && defined(Q_OS_WIN))
-void Application::shutdownCleanup(QSessionManager &manager)
+void ApplicationImpl::shutdownCleanup(QSessionManager &manager)
 {
     Q_UNUSED(manager);
 
@@ -673,7 +673,7 @@ void Application::shutdownCleanup(QSessionManager &manager)
 }
 #endif
 
-void Application::cleanup()
+void ApplicationImpl::cleanup()
 {
     // cleanup() can be called multiple times during shutdown. We only need it once.
     static QAtomicInt alreadyDone;
@@ -741,13 +741,13 @@ void Application::cleanup()
     }
 #endif // DISABLE_GUI
 
-    if (m_shutdownAct != ShutdownDialogAction::Exit) {
+    if (m_shutdownAct != ShutdownAction::Exit) {
         qDebug() << "Sending computer shutdown/suspend/hibernate signal...";
         Utils::Misc::shutdownComputer(m_shutdownAct);
     }
 }
 
-void Application::validateCommandLineParameters()
+void ApplicationImpl::validateCommandLineParameters()
 {
     if (m_commandLineArgs.portableMode && !m_commandLineArgs.profileDir.isEmpty())
         throw CommandLineParameterError(tr("Portable mode and explicit profile directory options are mutually exclusive"));

@@ -1,9 +1,9 @@
 add_executable(qBittorrent
-application.h
+applicationimpl.h
 cmdoptions.h
 filelogger.h
 upgrade.h
-application.cpp
+applicationimpl.cpp
 cmdoptions.cpp
 filelogger.cpp
 main.cpp

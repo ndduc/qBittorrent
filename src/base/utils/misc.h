@@ -74,7 +74,7 @@ namespace Utils
         QString parseHtmlLinks(const QString &rawText);
         bool isUrl(const QString &s);
 
-        void shutdownComputer(const ShutdownDialogAction &action);
+        void shutdownComputer(const ShutdownAction &action);
 
         QString osName();
         QString boostVersionString();

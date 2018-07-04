@@ -38,13 +38,11 @@
 class SettingsStorage : public QObject
 {
     Q_OBJECT
-    SettingsStorage();
-    ~SettingsStorage();
+    Q_DISABLE_COPY(SettingsStorage)
 
 public:
-    static void initInstance();
-    static void freeInstance();
-    static SettingsStorage *instance();
+    SettingsStorage();
+    ~SettingsStorage();
 
     QVariant loadValue(const QString &key, const QVariant &defaultValue = QVariant()) const;
     void storeValue(const QString &key, const QVariant &value);
@@ -54,8 +52,6 @@ public slots:
     bool save();
 
 private:
-    static SettingsStorage *m_instance;
-
     QVariantHash m_data;
     bool m_dirty;
     QTimer m_timer;

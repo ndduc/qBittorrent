@@ -85,20 +85,14 @@ class Preferences : public QObject
     Q_OBJECT
     Q_DISABLE_COPY(Preferences)
 
-    Preferences();
-
     const QVariant value(const QString &key, const QVariant &defaultValue = QVariant()) const;
     void setValue(const QString &key, const QVariant &value);
-
-    static Preferences *m_instance;
 
 signals:
     void changed();
 
 public:
-    static void initInstance();
-    static void freeInstance();
-    static Preferences *instance();
+    Preferences();
 
     // General options
     QString getLocale() const;

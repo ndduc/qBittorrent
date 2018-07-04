@@ -46,9 +46,8 @@ class Logger : public QObject
     Q_DISABLE_COPY(Logger)
 
 public:
-    static void initInstance();
-    static void freeInstance();
-    static Logger *instance();
+    Logger();
+    ~Logger();
 
     void addMessage(const QString &message, const Log::MsgType &type = Log::NORMAL);
     void addPeer(const QString &ip, bool blocked, const QString &reason = QString());
@@ -60,18 +59,11 @@ signals:
     void newLogPeer(const Log::Peer &peer);
 
 private:
-    Logger();
-    ~Logger();
-
-    static Logger *m_instance;
     QVector<Log::Msg> m_messages;
     QVector<Log::Peer> m_peers;
     mutable QReadWriteLock m_lock;
     int m_msgCounter;
     int m_peerCounter;
 };
-
-// Helper function
-void LogMsg(const QString &message, const Log::MsgType &type = Log::NORMAL);
 
 #endif // LOGGER_H
