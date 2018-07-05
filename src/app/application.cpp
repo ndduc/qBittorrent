@@ -73,7 +73,7 @@
 #include "base/preferences.h"
 #include "base/profile.h"
 #include "base/rss/rss_autodownloader.h"
-#include "base/rss/rss_session.h"
+#include "base/rss/rss_manager.h"
 #include "base/scanfoldersmodel.h"
 #include "base/search/searchpluginmanager.h"
 #include "base/settingsstorage.h"
@@ -517,7 +517,7 @@ int Application::exec(const QStringList &params)
 #endif // DISABLE_GUI
 #endif // DISABLE_WEBUI
 
-        new RSS::Session; // create RSS::Session singleton
+        new RSS::Manager; // create RSS::Manager singleton
         new RSS::AutoDownloader; // create RSS::AutoDownloader singleton
     }
     catch (const RuntimeError &err) {
@@ -716,7 +716,7 @@ void Application::cleanup()
 #endif
 
     delete RSS::AutoDownloader::instance();
-    delete RSS::Session::instance();
+    delete RSS::Manager::instance();
 
     ScanFoldersModel::freeInstance();
     BitTorrent::Session::freeInstance();

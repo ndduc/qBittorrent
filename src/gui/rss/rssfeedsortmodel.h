@@ -1,7 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2012  Christophe Dumez <chris@qbittorrent.org>
+ * Copyright (C) 2018  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,50 +28,13 @@
 
 #pragma once
 
-#include <QList>
-#include <QObject>
-#include <QString>
-#include <QVariantHash>
+#include <QSortFilterProxyModel>
 
-class QXmlStreamReader;
-
-namespace RSS
+class RSSFeedSortModel : public QSortFilterProxyModel
 {
-    namespace Private
-    {
-        struct ParsingResult
-        {
-            QString url;
-            QString error;
-            QString lastBuildDate;
-            QString title;
-            QList<QVariantHash> articles;
-        };
+public:
+    using QSortFilterProxyModel::QSortFilterProxyModel;
 
-        class Parser : public QObject
-        {
-            Q_OBJECT
-            Q_DISABLE_COPY(Parser)
-
-        public:
-            Parser() = default;
-
-        public slots:
-            void parse(const QString &url, const QByteArray &feedData, const QString &lastBuildDate);
-
-        signals:
-            void finished(const RSS::Private::ParsingResult &result);
-
-        private:
-            void parseRssArticle(QXmlStreamReader &xml);
-            void parseRSSChannel(QXmlStreamReader &xml);
-            void parseAtomArticle(QXmlStreamReader &xml);
-            void parseAtomChannel(QXmlStreamReader &xml);
-
-            QString m_baseUrl;
-            ParsingResult m_result;
-        };
-    }
-}
-
-Q_DECLARE_METATYPE(RSS::Private::ParsingResult)
+protected:
+    bool lessThan(const QModelIndex &left, const QModelIndex &right) const override;
+};

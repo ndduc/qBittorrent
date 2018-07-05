@@ -45,7 +45,7 @@
 #include "base/net/proxyconfigurationmanager.h"
 #include "base/preferences.h"
 #include "base/rss/rss_autodownloader.h"
-#include "base/rss/rss_session.h"
+#include "base/rss/rss_manager.h"
 #include "base/scanfoldersmodel.h"
 #include "base/torrentfileguard.h"
 #include "base/utils/fs.h"
@@ -243,9 +243,9 @@ void AppController::preferencesAction()
     data["dyndns_domain"] = pref->getDynDomainName();
 
     // RSS settings
-    data["rss_refresh_interval"] = RSS::Session::instance()->refreshInterval();
-    data["rss_max_articles_per_feed"] = RSS::Session::instance()->maxArticlesPerFeed();
-    data["rss_processing_enabled"] = RSS::Session::instance()->isProcessingEnabled();
+    data["rss_refresh_interval"] = RSS::Manager::instance()->refreshInterval();
+    data["rss_max_articles_per_feed"] = RSS::Manager::instance()->maxArticlesPerFeed();
+    data["rss_processing_enabled"] = RSS::Manager::instance()->isProcessingEnabled();
     data["rss_auto_downloading_enabled"] = RSS::AutoDownloader::instance()->isProcessingEnabled();
 
     setResult(QJsonObject::fromVariantMap(data));
@@ -558,11 +558,11 @@ void AppController::setPreferencesAction()
     pref->apply();
 
     if ((it = m.find(QLatin1String("rss_refresh_interval"))) != m.constEnd())
-        RSS::Session::instance()->setRefreshInterval(it.value().toUInt());
+        RSS::Manager::instance()->setRefreshInterval(it.value().toUInt());
     if ((it = m.find(QLatin1String("rss_max_articles_per_feed"))) != m.constEnd())
-        RSS::Session::instance()->setMaxArticlesPerFeed(it.value().toInt());
+        RSS::Manager::instance()->setMaxArticlesPerFeed(it.value().toInt());
     if ((it = m.find(QLatin1String("rss_processing_enabled"))) != m.constEnd())
-        RSS::Session::instance()->setProcessingEnabled(it.value().toBool());
+        RSS::Manager::instance()->setProcessingEnabled(it.value().toBool());
     if ((it = m.find(QLatin1String("rss_auto_downloading_enabled"))) != m.constEnd())
         RSS::AutoDownloader::instance()->setProcessingEnabled(it.value().toBool());
 }
