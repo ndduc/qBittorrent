@@ -290,7 +290,7 @@ void TrackerFiltersList::removeItem(const QString &tracker, const QString &hash)
 
     if (!host.isEmpty()) {
         // Remove from 'Error' and 'Warning' view
-        trackerSuccess(hash, tracker);
+        trackerReply(hash, tracker);
         row = rowFromTracker(host);
         trackerItem = item(row);
         if (tmp.empty()) {
@@ -340,8 +340,9 @@ void TrackerFiltersList::setDownloadTrackerFavicon(bool value)
     }
 }
 
-void TrackerFiltersList::trackerSuccess(const QString &hash, const QString &tracker)
+void TrackerFiltersList::trackerReply(BitTorrent::TorrentHandle *torrent, const QString &tracker)
 {
+    const QString hash = torrent->hash();
     QStringList errored = m_errors.value(hash);
     QStringList warned = m_warnings.value(hash);
 
@@ -370,10 +371,18 @@ void TrackerFiltersList::trackerSuccess(const QString &hash, const QString &trac
             m_warnings.insert(hash, warned);
         }
     }
+
+//    trackers.append(tracker);
+//    m_warnings.insert(hash, trackers);
+//    item(3)->setText(tr("Warning (%1)").arg(m_warnings.size()));
+
+//    if (currentRow() == 3)
+//        applyFilter(3);
 }
 
-void TrackerFiltersList::trackerError(const QString &hash, const QString &tracker)
+void TrackerFiltersList::trackerError(BitTorrent::TorrentHandle *torrent, const QString &tracker)
 {
+    const QString hash = torrent->hash();
     QStringList trackers = m_errors.value(hash);
 
     if (trackers.contains(tracker))
@@ -385,21 +394,6 @@ void TrackerFiltersList::trackerError(const QString &hash, const QString &tracke
 
     if (currentRow() == 2)
         applyFilter(2);
-}
-
-void TrackerFiltersList::trackerWarning(const QString &hash, const QString &tracker)
-{
-    QStringList trackers = m_warnings.value(hash);
-
-    if (trackers.contains(tracker))
-        return;
-
-    trackers.append(tracker);
-    m_warnings.insert(hash, trackers);
-    item(3)->setText(tr("Warning (%1)").arg(m_warnings.size()));
-
-    if (currentRow() == 3)
-        applyFilter(3);
 }
 
 void TrackerFiltersList::downloadFavicon(const QString &url)
@@ -634,12 +628,10 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
     connect(trackerLabel, &QCheckBox::toggled, pref, &Preferences::setTrackerFilterState);
 
     using Func = void (TransferListFiltersWidget::*)(const QString&, const QString&);
-    connect(this, static_cast<Func>(&TransferListFiltersWidget::trackerSuccess)
-            , m_trackerFilters, &TrackerFiltersList::trackerSuccess);
-    connect(this, static_cast<Func>(&TransferListFiltersWidget::trackerError)
+    connect(this, static_cast<Func>(&TransferListFiltersWidget::onTrackerReply)
+            , m_trackerFilters, &TrackerFiltersList::trackerReply);
+    connect(this, static_cast<Func>(&TransferListFiltersWidget::onTrackerError)
             , m_trackerFilters, &TrackerFiltersList::trackerError);
-    connect(this, static_cast<Func>(&TransferListFiltersWidget::trackerWarning)
-            , m_trackerFilters, &TrackerFiltersList::trackerWarning);
 }
 
 void TransferListFiltersWidget::setDownloadTrackerFavicon(bool value)
@@ -664,19 +656,14 @@ void TransferListFiltersWidget::changeTrackerless(BitTorrent::TorrentHandle *con
     m_trackerFilters->changeTrackerless(trackerless, torrent->hash());
 }
 
-void TransferListFiltersWidget::trackerSuccess(BitTorrent::TorrentHandle *const torrent, const QString &tracker)
+void TransferListFiltersWidget::onTrackerReply(BitTorrent::TorrentHandle *const torrent, const QString &tracker)
 {
-    emit trackerSuccess(torrent->hash(), tracker);
+    emit trackerReply(torrent, tracker);
 }
 
-void TransferListFiltersWidget::trackerWarning(BitTorrent::TorrentHandle *const torrent, const QString &tracker)
+void TransferListFiltersWidget::onTrackerError(BitTorrent::TorrentHandle *const torrent, const QString &tracker)
 {
-    emit trackerWarning(torrent->hash(), tracker);
-}
-
-void TransferListFiltersWidget::trackerError(BitTorrent::TorrentHandle *const torrent, const QString &tracker)
-{
-    emit trackerError(torrent->hash(), tracker);
+    emit trackerError(torrent, tracker);
 }
 
 void TransferListFiltersWidget::onCategoryFilterStateChanged(bool enabled)

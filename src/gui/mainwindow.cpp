@@ -261,9 +261,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(BitTorrent::Session::instance(), &BitTorrent::Session::trackerlessStateChanged, m_transferListFiltersWidget, &TransferListFiltersWidget::changeTrackerless);
 
     using Func = void (TransferListFiltersWidget::*)(BitTorrent::TorrentHandle *const, const QString &);
-    connect(BitTorrent::Session::instance(), &BitTorrent::Session::trackerSuccess, m_transferListFiltersWidget, static_cast<Func>(&TransferListFiltersWidget::trackerSuccess));
-    connect(BitTorrent::Session::instance(), &BitTorrent::Session::trackerError, m_transferListFiltersWidget, static_cast<Func>(&TransferListFiltersWidget::trackerError));
-    connect(BitTorrent::Session::instance(), &BitTorrent::Session::trackerWarning, m_transferListFiltersWidget, static_cast<Func>(&TransferListFiltersWidget::trackerWarning));
+    connect(BitTorrent::Session::instance(), &BitTorrent::Session::trackerReply, m_transferListFiltersWidget, static_cast<Func>(&TransferListFiltersWidget::onTrackerReply));
+    connect(BitTorrent::Session::instance(), &BitTorrent::Session::trackerError, m_transferListFiltersWidget, static_cast<Func>(&TransferListFiltersWidget::onTrackerError));
 
 #ifdef Q_OS_MAC
     // Increase top spacing to avoid tab overlapping

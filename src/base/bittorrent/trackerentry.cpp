@@ -28,103 +28,14 @@
 
 #include "trackerentry.h"
 
-#include <algorithm>
-
-#include <libtorrent/version.hpp>
-
-#include <QString>
 #include <QUrl>
 
-using namespace BitTorrent;
-
-TrackerEntry::TrackerEntry(const QString &url)
-    : m_nativeEntry(url.toStdString())
+BitTorrent::TrackerEntry::TrackerEntry(const QString &url)
+    : url {url}
 {
-}
-
-TrackerEntry::TrackerEntry(const libtorrent::announce_entry &nativeEntry)
-    : m_nativeEntry(nativeEntry)
-{
-}
-
-QString TrackerEntry::url() const
-{
-    return QString::fromStdString(m_nativeEntry.url);
-}
-
-bool TrackerEntry::isWorking() const
-{
-#if (LIBTORRENT_VERSION_NUM < 10200)
-    return m_nativeEntry.is_working();
-#else
-    return std::any_of(m_nativeEntry.endpoints.begin(), m_nativeEntry.endpoints.end()
-                       , [](const lt::announce_endpoint &endpoint)
-    {
-        return endpoint.is_working();
-    });
-#endif
-}
-
-int TrackerEntry::tier() const
-{
-    return m_nativeEntry.tier;
-}
-
-TrackerEntry::Status TrackerEntry::status() const
-{
-    // libtorrent::announce_entry::is_working() returns
-    // true when the tracker hasn't been tried yet.
-    if (m_nativeEntry.verified && isWorking())
-        return Working;
-    if ((m_nativeEntry.fails == 0) && m_nativeEntry.updating)
-        return Updating;
-    if (m_nativeEntry.fails == 0)
-        return NotContacted;
-
-    return NotWorking;
-}
-
-void TrackerEntry::setTier(const int value)
-{
-    m_nativeEntry.tier = value;
-}
-
-int TrackerEntry::numSeeds() const
-{
-#if (LIBTORRENT_VERSION_NUM < 10200)
-    return nativeEntry().scrape_complete;
-#else
-    // FIXME: Handle all possible endpoints.
-    return nativeEntry().endpoints.empty() ? -1 : nativeEntry().endpoints[0].scrape_complete;
-#endif
-}
-
-int TrackerEntry::numLeeches() const
-{
-#if (LIBTORRENT_VERSION_NUM < 10200)
-    return nativeEntry().scrape_incomplete;
-#else
-    // FIXME: Handle all possible endpoints.
-    return nativeEntry().endpoints.empty() ? -1 : nativeEntry().endpoints[0].scrape_incomplete;
-#endif
-}
-
-int TrackerEntry::numDownloaded() const
-{
-#if (LIBTORRENT_VERSION_NUM < 10200)
-    return nativeEntry().scrape_downloaded;
-#else
-    // FIXME: Handle all possible endpoints.
-    return nativeEntry().endpoints.empty() ? -1 : nativeEntry().endpoints[0].scrape_downloaded;
-#endif
-}
-
-libtorrent::announce_entry TrackerEntry::nativeEntry() const
-{
-    return m_nativeEntry;
 }
 
 bool BitTorrent::operator==(const TrackerEntry &left, const TrackerEntry &right)
 {
-    return (QUrl(left.url()) == QUrl(right.url()));
+    return (QUrl {left.url} == QUrl {right.url});
 }

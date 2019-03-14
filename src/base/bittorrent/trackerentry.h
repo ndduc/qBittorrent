@@ -26,50 +26,35 @@
  * exception statement from your version.
  */
 
-#ifndef BITTORRENT_TRACKERENTRY_H
-#define BITTORRENT_TRACKERENTRY_H
+#pragma once
 
-#include <libtorrent/announce_entry.hpp>
-#include <libtorrent/torrent_info.hpp>
-
-class QString;
+#include <QString>
 
 namespace BitTorrent
 {
-    class TrackerEntry
+    struct TrackerEntry
     {
-    public:
         enum Status
         {
-            NotContacted = 1,
-            Working = 2,
-            Updating = 3,
-            NotWorking = 4
+            NotContacted,
+            Working,
+            Updating,
+            NotWorking
         };
 
         TrackerEntry(const QString &url);
-        TrackerEntry(const libtorrent::announce_entry &nativeEntry);
         TrackerEntry(const TrackerEntry &other) = default;
         TrackerEntry &operator=(const TrackerEntry &other) = default;
 
-        QString url() const;
-        bool isWorking() const;
-        Status status() const;
-
-        int tier() const;
-        void setTier(int value);
-
-        int numSeeds() const;
-        int numLeeches() const;
-        int numDownloaded() const;
-
-        libtorrent::announce_entry nativeEntry() const;
-
-    private:
-        libtorrent::announce_entry m_nativeEntry;
+        QString url;
+        int tier = 0;
+        Status status = NotContacted;
+        QString message;
+        int numPeers = -1;
+        int numLeeches = -1;
+        int numSeeds = -1;
+        int numDownloaded = -1;
     };
 
     bool operator==(const TrackerEntry &left, const TrackerEntry &right);
 }
-
-#endif // BITTORRENT_TRACKERENTRY_H

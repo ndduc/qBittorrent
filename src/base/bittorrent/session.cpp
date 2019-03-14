@@ -3442,17 +3442,12 @@ void Session::handleTorrentResumeDataFailed(TorrentHandle *const torrent)
 
 void Session::handleTorrentTrackerReply(TorrentHandle *const torrent, const QString &trackerUrl)
 {
-    emit trackerSuccess(torrent, trackerUrl);
+    emit trackerReply(torrent, trackerUrl);
 }
 
 void Session::handleTorrentTrackerError(TorrentHandle *const torrent, const QString &trackerUrl)
 {
     emit trackerError(torrent, trackerUrl);
-}
-
-void Session::handleTorrentTrackerWarning(TorrentHandle *const torrent, const QString &trackerUrl)
-{
-    emit trackerWarning(torrent, trackerUrl);
 }
 
 bool Session::hasPerTorrentRatioLimit() const
@@ -3770,6 +3765,8 @@ void Session::handleAlert(const libt::alert *a)
         case libt::tracker_error_alert::alert_type:
         case libt::tracker_reply_alert::alert_type:
         case libt::tracker_warning_alert::alert_type:
+        case libt::scrape_reply_alert::alert_type:
+        case libt::scrape_failed_alert::alert_type:
         case libt::fastresume_rejected_alert::alert_type:
         case libt::torrent_checked_alert::alert_type:
             dispatchTorrentAlert(a);

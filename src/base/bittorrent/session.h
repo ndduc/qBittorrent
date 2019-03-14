@@ -448,7 +448,6 @@ namespace BitTorrent
         void handleTorrentResumeDataReady(TorrentHandle *const torrent, const libtorrent::entry &data);
         void handleTorrentResumeDataFailed(TorrentHandle *const torrent);
         void handleTorrentTrackerReply(TorrentHandle *const torrent, const QString &trackerUrl);
-        void handleTorrentTrackerWarning(TorrentHandle *const torrent, const QString &trackerUrl);
         void handleTorrentTrackerError(TorrentHandle *const torrent, const QString &trackerUrl);
 
     signals:
@@ -471,8 +470,7 @@ namespace BitTorrent
         void metadataLoaded(const BitTorrent::TorrentInfo &info);
         void torrentMetadataLoaded(BitTorrent::TorrentHandle *const torrent);
         void fullDiskError(BitTorrent::TorrentHandle *const torrent, const QString &msg);
-        void trackerSuccess(BitTorrent::TorrentHandle *const torrent, const QString &tracker);
-        void trackerWarning(BitTorrent::TorrentHandle *const torrent, const QString &tracker);
+        void trackerReply(BitTorrent::TorrentHandle *const torrent, const QString &tracker);
         void trackerError(BitTorrent::TorrentHandle *const torrent, const QString &tracker);
         void trackerAuthenticationRequired(BitTorrent::TorrentHandle *const torrent);
         void recursiveTorrentDownloadPossible(BitTorrent::TorrentHandle *const torrent);

@@ -108,9 +108,8 @@ public:
     void setDownloadTrackerFavicon(bool value);
 
 public slots:
-    void trackerSuccess(const QString &hash, const QString &tracker);
-    void trackerError(const QString &hash, const QString &tracker);
-    void trackerWarning(const QString &hash, const QString &tracker);
+    void trackerReply(BitTorrent::TorrentHandle *torrent, const QString &tracker);
+    void trackerError(BitTorrent::TorrentHandle *torrent, const QString &tracker);
 
 private slots:
     void handleFavicoDownloadFinished(const Net::DownloadResult &result);
@@ -142,6 +141,7 @@ class TagFilterWidget;
 class TransferListFiltersWidget : public QFrame
 {
     Q_OBJECT
+    Q_DISABLE_COPY(TransferListFiltersWidget)
 
 public:
     TransferListFiltersWidget(QWidget *parent, TransferListWidget *transferList);
@@ -151,14 +151,12 @@ public slots:
     void addTrackers(BitTorrent::TorrentHandle *const torrent, const QList<BitTorrent::TrackerEntry> &trackers);
     void removeTrackers(BitTorrent::TorrentHandle *const torrent, const QList<BitTorrent::TrackerEntry> &trackers);
     void changeTrackerless(BitTorrent::TorrentHandle *const torrent, bool trackerless);
-    void trackerSuccess(BitTorrent::TorrentHandle *const torrent, const QString &tracker);
-    void trackerWarning(BitTorrent::TorrentHandle *const torrent, const QString &tracker);
-    void trackerError(BitTorrent::TorrentHandle *const torrent, const QString &tracker);
+    void onTrackerReply(BitTorrent::TorrentHandle *const torrent, const QString &tracker);
+    void onTrackerError(BitTorrent::TorrentHandle *const torrent, const QString &tracker);
 
 signals:
-    void trackerSuccess(const QString &hash, const QString &tracker);
-    void trackerError(const QString &hash, const QString &tracker);
-    void trackerWarning(const QString &hash, const QString &tracker);
+    void trackerReply(BitTorrent::TorrentHandle *torrent, const QString &tracker);
+    void trackerError(BitTorrent::TorrentHandle *torrent, const QString &tracker);
 
 private slots:
     void onCategoryFilterStateChanged(bool enabled);

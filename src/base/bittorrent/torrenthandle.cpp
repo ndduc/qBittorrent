@@ -38,6 +38,7 @@
 
 #include <libtorrent/address.hpp>
 #include <libtorrent/alert_types.hpp>
+#include <libtorrent/announce_entry.hpp>
 #include <libtorrent/bencode.hpp>
 #include <libtorrent/create_torrent.hpp>
 #include <libtorrent/entry.hpp>
@@ -101,9 +102,51 @@ namespace
             entryList.emplace_back(setValue.toStdString());
         return entryList;
     }
-}
 
-// AddTorrentData
+    BitTorrent::TrackerEntry makeTrackerEntry(const libt::announce_entry &nativeEntry, int numPeers = -1)
+    {
+        BitTorrent::TrackerEntry entry {QString::fromStdString(nativeEntry.url)};
+
+#if (LIBTORRENT_VERSION_NUM < 10200)
+        const bool isFailed = (nativeEntry.fails != 0);
+        const bool isUpdating = nativeEntry.updating;
+
+        entry.message = QString::fromStdString(nativeEntry.message);
+        entry.numLeeches = nativeEntry.scrape_incomplete;
+        entry.numSeeds = nativeEntry.scrape_complete;
+        entry.numDownloaded = nativeEntry.scrape_downloaded;
+#else
+        const bool isFailed = std::all_of(nativeEntry.endpoints.begin(), nativeEntry.endpoints.end()
+                                           , [](const lt::announce_endpoint &endpoint)
+        {
+            return endpoint.fails != 0;
+        });
+
+        // FIXME: Handle all possible endpoints.
+        const bool isUpdating = !nativeEntry.endpoints.empty() && nativeEntry.endpoints[0].updating;
+        if (!nativeEntry.endpoints.empty()) {
+            entry.message = QString::fromStdString(nativeEntry.endpoints[0].message);
+            entry.numLeeches = nativeEntry.endpoints[0].scrape_incomplete;
+            entry.numSeeds = nativeEntry.endpoints[0].scrape_complete;
+            entry.numDownloaded = nativeEntry.endpoints[0].scrape_downloaded;
+        }
+#endif
+
+        entry.numPeers = numPeers;
+        entry.tier = nativeEntry.tier;
+
+        if (!isFailed) {
+            if (nativeEntry.verified)
+                entry.status = BitTorrent::TrackerEntry::Working;
+            else if (isUpdating)
+                entry.status =  BitTorrent::TrackerEntry::Updating;
+            else
+                entry.status =  BitTorrent::TrackerEntry::NotContacted;
+        }
+
+        return entry;
+    }
+}
 
 CreateTorrentParams::CreateTorrentParams()
     : restored(false)
@@ -192,6 +235,10 @@ TorrentHandle::TorrentHandle(Session *session, const libtorrent::torrent_handle 
 
     updateStatus();
     m_hash = InfoHash(m_nativeStatus.info_hash);
+
+    const std::vector<libt::announce_entry> announces = m_nativeHandle.trackers();
+    for (const libt::announce_entry &tracker : announces)
+        m_trackerEntries[QString::fromStdString(tracker.url)] = makeTrackerEntry(tracker);
 
     // NB: the following two if statements are present because we don't want
     // to set either sequential download or first/last piece priority to false
@@ -366,20 +413,9 @@ QString TorrentHandle::nativeActualSavePath() const
     return QString::fromStdString(m_nativeStatus.save_path);
 }
 
-QList<TrackerEntry> TorrentHandle::trackers() const
+QHash<QString, TrackerEntry> TorrentHandle::trackerEntries() const
 {
-    QList<TrackerEntry> entries;
-    const std::vector<libt::announce_entry> announces = m_nativeHandle.trackers();
-
-    for (const libt::announce_entry &tracker : announces)
-        entries << tracker;
-
-    return entries;
-}
-
-QHash<QString, TrackerInfo> TorrentHandle::trackerInfos() const
-{
-    return m_trackerInfos;
+    return m_trackerEntries;
 }
 
 void TorrentHandle::addTrackers(const QList<TrackerEntry> &trackers)
@@ -1479,11 +1515,18 @@ void TorrentHandle::handleStorageMovedFailedAlert(const libtorrent::storage_move
 
 void TorrentHandle::handleTrackerReplyAlert(const libtorrent::tracker_reply_alert *p)
 {
-    const QString trackerUrl(p->tracker_url());
-    qDebug("Received a tracker reply from %s (Num_peers = %d)", qUtf8Printable(trackerUrl), p->num_peers);
-    // Connection was successful now. Remove possible old errors
-    m_trackerInfos[trackerUrl].lastMessage.clear(); // Reset error/warning message
-    m_trackerInfos[trackerUrl].numPeers = p->num_peers;
+    const std::vector<libt::announce_entry> entries = nativeHandle().trackers();
+    const auto it = std::find_if(entries.cbegin(), entries.cend(), [&p](const libt::announce_entry &entry)
+    {
+        return entry.url == p->tracker_url();
+    });
+    if (it == entries.cend())
+        return;
+
+    const QString trackerUrl {p->tracker_url()};
+    const TrackerEntry trackerEntry = makeTrackerEntry(*it, p->num_peers);
+    qDebug("Received a tracker reply from %s (Num_peers = %d)", qUtf8Printable(trackerUrl), trackerEntry.numPeers);
+    m_trackerEntries[trackerUrl] = trackerEntry;
 
     m_session->handleTorrentTrackerReply(this, trackerUrl);
 }
@@ -1494,19 +1537,47 @@ void TorrentHandle::handleTrackerWarningAlert(const libtorrent::tracker_warning_
     const QString message = p->warning_message();
 
     // Connection was successful now but there is a warning message
-    m_trackerInfos[trackerUrl].lastMessage = message; // Store warning message
-
-    m_session->handleTorrentTrackerWarning(this, trackerUrl);
+    qDebug("Received a tracker warning from %s: %s", qUtf8Printable(trackerUrl), qUtf8Printable(message));
 }
 
 void TorrentHandle::handleTrackerErrorAlert(const libtorrent::tracker_error_alert *p)
 {
-    const QString trackerUrl = p->tracker_url();
-    const QString message = p->error_message();
+    const std::vector<libt::announce_entry> entries = nativeHandle().trackers();
+    const auto it = std::find_if(entries.cbegin(), entries.cend(), [&p](const libt::announce_entry &entry)
+    {
+        return entry.url == p->tracker_url();
+    });
+    if (it == entries.cend())
+        return;
 
-    m_trackerInfos[trackerUrl].lastMessage = message;
+    const QString trackerUrl {p->tracker_url()};
+    const TrackerEntry trackerEntry = makeTrackerEntry(*it);
+    m_trackerEntries[trackerUrl] = trackerEntry;
 
     m_session->handleTorrentTrackerError(this, trackerUrl);
+}
+
+void TorrentHandle::handleScrapeReplyAlert(const libtorrent::scrape_reply_alert *p)
+{
+    const std::vector<libt::announce_entry> entries = nativeHandle().trackers();
+    const auto it = std::find_if(entries.cbegin(), entries.cend(), [&p](const libt::announce_entry &entry)
+    {
+        return entry.url == p->tracker_url();
+    });
+    if (it == entries.cend())
+        return;
+
+    const QString trackerUrl {p->tracker_url()};
+    const TrackerEntry trackerEntry = makeTrackerEntry(*it, m_trackerEntries.value(trackerUrl).numPeers);
+    qDebug("Received a scrape reply from %s", qUtf8Printable(trackerUrl));
+    m_trackerEntries[trackerUrl] = trackerEntry;
+
+    m_session->handleTorrentTrackerReply(this, trackerUrl);
+}
+
+void TorrentHandle::handleScrapeFailedAlert(const libtorrent::scrape_failed_alert *p)
+{
+
 }
 
 void TorrentHandle::handleTorrentCheckedAlert(const libtorrent::torrent_checked_alert *p)
@@ -1803,6 +1874,12 @@ void TorrentHandle::handleAlert(const libtorrent::alert *a)
         break;
     case libt::tracker_warning_alert::alert_type:
         handleTrackerWarningAlert(static_cast<const libt::tracker_warning_alert*>(a));
+        break;
+    case libt::scrape_reply_alert::alert_type:
+        handleScrapeReplyAlert(static_cast<const libt::scrape_reply_alert*>(a));
+        break;
+    case libt::scrape_failed_alert::alert_type:
+        handleScrapeFailedAlert(static_cast<const libt::scrape_failed_alert*>(a));
         break;
     case libt::metadata_received_alert::alert_type:
         handleMetadataReceivedAlert(static_cast<const libt::metadata_received_alert*>(a));

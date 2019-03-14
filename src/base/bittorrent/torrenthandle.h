@@ -260,8 +260,7 @@ namespace BitTorrent
         bool hasError() const;
         bool hasFilteredPieces() const;
         int queuePosition() const;
-        QList<TrackerEntry> trackers() const;
-        QHash<QString, TrackerInfo> trackerInfos() const;
+        QHash<QString, TrackerEntry> trackerEntries() const;
         QList<QUrl> urlSeeds() const;
         QString error() const;
         qlonglong totalDownload() const;
@@ -364,6 +363,8 @@ namespace BitTorrent
         void handleTrackerReplyAlert(const libtorrent::tracker_reply_alert *p);
         void handleTrackerWarningAlert(const libtorrent::tracker_warning_alert *p);
         void handleTrackerErrorAlert(const libtorrent::tracker_error_alert *p);
+        void handleScrapeReplyAlert(const libtorrent::scrape_reply_alert *p);
+        void handleScrapeFailedAlert(const libtorrent::scrape_failed_alert *p);
         void handleTorrentCheckedAlert(const libtorrent::torrent_checked_alert *p);
         void handleTorrentFinishedAlert(const libtorrent::torrent_finished_alert *p);
         void handleTorrentPausedAlert(const libtorrent::torrent_paused_alert *p);
@@ -431,7 +432,7 @@ namespace BitTorrent
         bool m_needsToSetFirstLastPiecePriority;
         bool m_needsToStartForced;
 
-        QHash<QString, TrackerInfo> m_trackerInfos;
+        QHash<QString, TrackerEntry> m_trackerEntries;
 
         enum StartupState
         {
