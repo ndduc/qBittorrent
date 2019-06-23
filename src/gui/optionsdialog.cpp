@@ -51,6 +51,7 @@
 #include "base/rss/rss_autodownloader.h"
 #include "base/rss/rss_session.h"
 #include "base/scanfoldersmodel.h"
+#include "base/settings.h"
 #include "base/torrentfileguard.h"
 #include "base/unicodestrings.h"
 #include "base/utils/fs.h"
@@ -74,7 +75,7 @@ namespace
     {
         // return translated strings from Monday to Sunday in user selected locale
 
-        const QLocale locale {Preferences::instance()->getLocale()};
+        const QLocale locale {Settings::instance()->get(Settings::APP_LOCALE).toString()};
         const QDate date {2018, 11, 5};  // Monday
         QStringList ret;
         for (int i = 0; i < 7; ++i)
@@ -497,12 +498,13 @@ void OptionsDialog::initializeLanguageCombo()
 void OptionsDialog::initializeThemeCombo()
 {
     m_ui->comboTheme->addItem(tr("Default"));
-    const QString customUIThemePath = Preferences::instance()->customUIThemePath();
+    const QString customUIThemePath = Settings::instance()->get(Settings::GUI_CUSTOMTHEME_PATH).toString();
     if (!customUIThemePath.isEmpty())
         m_ui->comboTheme->addItem(Utils::Fs::toNativePath(customUIThemePath));
     m_ui->comboTheme->insertSeparator(m_ui->comboTheme->count());
     m_ui->comboTheme->addItem(tr("Select..."));
-    m_ui->comboTheme->setCurrentIndex(Preferences::instance()->useCustomUITheme() ? 1 : 0);
+    m_ui->comboTheme->setCurrentIndex(
+                Settings::instance()->get(Settings::GUI_CUSTOMTHEME_ENABLED).toBool() ? 1 : 0);
 
     connect(m_ui->comboTheme, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](const int index)
     {
@@ -520,7 +522,8 @@ void OptionsDialog::initializeThemeCombo()
         }
         else {
             // don't leave "Select..." as current text
-            m_ui->comboTheme->setCurrentIndex(Preferences::instance()->useCustomUITheme() ? 1 : 0);
+            m_ui->comboTheme->setCurrentIndex(
+                        Settings::instance()->get(Settings::GUI_CUSTOMTHEME_ENABLED).toBool() ? 1 : 0);
         }
         m_ui->comboTheme->blockSignals(false);
     });
@@ -585,7 +588,7 @@ void OptionsDialog::saveOptions()
     Preferences *const pref = Preferences::instance();
     // Load the translation
     QString locale = getLocale();
-    if (pref->getLocale() != locale) {
+    if (Settings::instance()->get(Settings::APP_LOCALE).toString() != locale) {
         auto *translator = new QTranslator;
         if (translator->load(QLatin1String(":/lang/qbittorrent_") + locale))
             qDebug("%s locale recognized, using translation.", qUtf8Printable(locale));
@@ -595,16 +598,16 @@ void OptionsDialog::saveOptions()
     }
 
     // General preferences
-    pref->setLocale(locale);
+    Settings::instance()->set(Settings::APP_LOCALE, locale);
 
     if (!m_uiThemeFilePath.isEmpty()
         && (m_ui->comboTheme->currentIndex() == 1)) {
         // only change if current selection is still new m_uiThemeFilePath
-        pref->setCustomUIThemePath(m_uiThemeFilePath);
+        Settings::instance()->set(Settings::GUI_CUSTOMTHEME_PATH, m_uiThemeFilePath);
         m_uiThemeFilePath.clear();
     }
-    pref->setUseCustomUITheme(m_ui->comboTheme->currentIndex() == 1);
-
+    Settings::instance()->set(Settings::GUI_CUSTOMTHEME_ENABLED, (m_ui->comboTheme->currentIndex() == 1));
+    
     pref->setConfirmTorrentDeletion(m_ui->confirmDeletion->isChecked());
     pref->setAlternatingRowColors(m_ui->checkAltRowColors->isChecked());
     pref->setHideZeroValues(m_ui->checkHideZero->isChecked());
@@ -834,7 +837,7 @@ void OptionsDialog::loadOptions()
     const Preferences *const pref = Preferences::instance();
 
     // General preferences
-    setLocale(pref->getLocale());
+    setLocale(Settings::instance()->get(Settings::APP_LOCALE).toString());
     m_ui->confirmDeletion->setChecked(pref->confirmTorrentDeletion());
     m_ui->checkAltRowColors->setChecked(pref->useAlternatingRowColors());
     m_ui->checkHideZero->setChecked(pref->getHideZeroValues());

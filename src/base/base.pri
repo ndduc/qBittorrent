@@ -59,6 +59,7 @@ HEADERS += \
     $$PWD/search/searchhandler.h \
     $$PWD/search/searchdownloadhandler.h \
     $$PWD/search/searchpluginmanager.h \
+    $$PWD/settings.h \
     $$PWD/settingsstorage.h \
     $$PWD/settingvalue.h \
     $$PWD/torrentfileguard.h \
@@ -129,6 +130,7 @@ SOURCES += \
     $$PWD/search/searchdownloadhandler.cpp \
     $$PWD/search/searchhandler.cpp \
     $$PWD/search/searchpluginmanager.cpp \
+    $$PWD/settings.cpp \
     $$PWD/settingsstorage.cpp \
     $$PWD/torrentfileguard.cpp \
     $$PWD/torrentfilter.cpp \

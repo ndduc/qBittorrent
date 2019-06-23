@@ -147,7 +147,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Setting icons
 #ifndef Q_OS_MAC
 #ifdef Q_OS_UNIX
-    const QIcon appLogo = Preferences::instance()->useSystemIconTheme()
+    const QIcon appLogo = Settings::instance()->get(Settings::GUI_USESYSTEMICONTHEME).toBool()
         ? QIcon::fromTheme("qbittorrent", QIcon(":/icons/skin/qbittorrent-tray.svg"))
         : QIcon(":/icons/skin/qbittorrent-tray.svg");
 #else

@@ -78,6 +78,7 @@
 #include "base/rss/rss_session.h"
 #include "base/scanfoldersmodel.h"
 #include "base/search/searchpluginmanager.h"
+#include "base/settings.h"
 #include "base/settingsstorage.h"
 #include "base/utils/fs.h"
 #include "base/utils/misc.h"
@@ -142,6 +143,7 @@ Application::Application(const QString &id, int &argc, char **argv)
     Logger::initInstance();
     SettingsStorage::initInstance();
     Preferences::initInstance();
+    Settings::initInstance();
 
     if (m_commandLineArgs.webUiPort > 0) // it will be -1 when user did not set any value
         Preferences::instance()->setWebUiPort(m_commandLineArgs.webUiPort);
@@ -606,9 +608,8 @@ bool Application::event(QEvent *ev)
 
 void Application::initializeTranslation()
 {
-    Preferences *const pref = Preferences::instance();
     // Load translation
-    const QString localeStr = pref->getLocale();
+    const QString localeStr = Settings::instance()->get(Settings::APP_LOCALE).toString();
 
     if (m_qtTranslator.load(QLatin1String("qtbase_") + localeStr, QLibraryInfo::location(QLibraryInfo::TranslationsPath)) ||
         m_qtTranslator.load(QLatin1String("qt_") + localeStr, QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
@@ -711,6 +712,7 @@ void Application::cleanup()
 #endif
     Net::DownloadManager::freeInstance();
     Net::ProxyConfigurationManager::freeInstance();
+    Settings::freeInstance();
     Preferences::freeInstance();
     SettingsStorage::freeInstance();
     delete m_fileLogger;

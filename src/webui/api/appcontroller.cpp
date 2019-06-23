@@ -51,6 +51,7 @@
 #include "base/rss/rss_autodownloader.h"
 #include "base/rss/rss_session.h"
 #include "base/scanfoldersmodel.h"
+#include "base/settings.h"
 #include "base/torrentfileguard.h"
 #include "base/utils/fs.h"
 #include "base/utils/misc.h"
@@ -215,7 +216,7 @@ void AppController::preferencesAction()
 
     // Web UI
     // Language
-    data["locale"] = pref->getLocale();
+    data["locale"] = Settings::instance()->get(Settings::APP_LOCALE);
     // HTTP Server
     data["web_ui_domain_list"] = pref->getServerDomains();
     data["web_ui_address"] = pref->getWebUiAddress();
@@ -556,8 +557,8 @@ void AppController::setPreferencesAction()
     // Web UI
     // Language
     if (hasKey("locale")) {
-        QString locale = it.value().toString();
-        if (pref->getLocale() != locale) {
+        if (Settings::instance()->get(Settings::APP_LOCALE) != it.value()) {
+            const QString locale = it.value().toString();
             auto *translator = new QTranslator;
             if (translator->load(QLatin1String(":/lang/qbittorrent_") + locale)) {
                 qDebug("%s locale recognized, using translation.", qUtf8Printable(locale));
@@ -567,7 +568,7 @@ void AppController::setPreferencesAction()
             }
             qApp->installTranslator(translator);
 
-            pref->setLocale(locale);
+            Settings::instance()->set(Settings::APP_LOCALE, locale);
         }
     }
     // HTTP Server

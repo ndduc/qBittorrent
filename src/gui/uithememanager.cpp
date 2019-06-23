@@ -36,7 +36,7 @@
 
 #include "base/iconprovider.h"
 #include "base/logger.h"
-#include "base/preferences.h"
+#include "base/settings.h"
 #include "base/utils/fs.h"
 
 UIThemeManager *UIThemeManager::m_instance = nullptr;
@@ -57,13 +57,14 @@ void UIThemeManager::initInstance()
 
 UIThemeManager::UIThemeManager()
 {
-    const Preferences *const pref = Preferences::instance();
-    if (pref->useCustomUITheme()
-        && !QResource::registerResource(pref->customUIThemePath(), "/uitheme"))
-        LogMsg(tr("Failed to load UI theme from file: \"%1\"").arg(pref->customUIThemePath()), Log::WARNING);
+    const QString path {Settings::instance()->get(Settings::GUI_CUSTOMTHEME_PATH).toString()};
+    if (Settings::instance()->get(Settings::GUI_CUSTOMTHEME_ENABLED).toBool()
+        && !QResource::registerResource(path, "/uitheme")) {
+        LogMsg(tr("Failed to load UI theme from file: \"%1\"").arg(path, Log::WARNING));
+    }
 
 #if (defined(Q_OS_UNIX) && !defined(Q_OS_MAC))
-    m_useSystemTheme = pref->useSystemIconTheme();
+    m_useSystemTheme = Settings::instance()->get(Settings::GUI_USESYSTEMICONTHEME).toBool();
 #endif
 }
 
@@ -74,7 +75,7 @@ UIThemeManager *UIThemeManager::instance()
 
 void UIThemeManager::applyStyleSheet() const
 {
-    if (!Preferences::instance()->useCustomUITheme()) {
+    if (!Settings::instance()->get(Settings::GUI_CUSTOMTHEME_ENABLED).toBool()) {
         qApp->setStyleSheet({});
         return;
     }

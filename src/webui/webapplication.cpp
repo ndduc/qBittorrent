@@ -46,6 +46,7 @@
 #include "base/http/httperror.h"
 #include "base/logger.h"
 #include "base/preferences.h"
+#include "base/settings.h"
 #include "base/utils/bytearray.h"
 #include "base/utils/fs.h"
 #include "base/utils/misc.h"
@@ -314,7 +315,7 @@ void WebApplication::configure()
             LogMsg(tr("Using custom Web UI. Location: \"%1\".").arg(m_rootFolder));
     }
 
-    const QString newLocale = pref->getLocale();
+    const QString newLocale = Settings::instance()->get(Settings::APP_LOCALE).toString();
     if (m_currentLocale != newLocale) {
         m_currentLocale = newLocale;
         m_translatedFiles.clear();

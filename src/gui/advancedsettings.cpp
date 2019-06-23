@@ -240,7 +240,7 @@ void AdvancedSettings::saveAdvancedSettings()
 #endif
     // Icon theme
 #if (defined(Q_OS_UNIX) && !defined(Q_OS_MAC))
-    pref->useSystemIconTheme(m_checkBoxUseIconTheme.isChecked());
+    Settings::instance()->set(Settings::GUI_USESYSTEMICONTHEME, m_checkBoxUseIconTheme.isChecked());
 #endif
     pref->setConfirmTorrentRecheck(m_checkBoxConfirmTorrentRecheck.isChecked());
 
@@ -532,7 +532,7 @@ void AdvancedSettings::loadAdvancedSettings()
     addRow(UPDATE_CHECK, tr("Check for software updates"), &m_checkBoxUpdateCheck);
 #endif
 #if (defined(Q_OS_UNIX) && !defined(Q_OS_MAC))
-    m_checkBoxUseIconTheme.setChecked(pref->useSystemIconTheme());
+    m_checkBoxUseIconTheme.setChecked(Settings::instance()->get(Settings::GUI_USESYSTEMICONTHEME).toBool());
     addRow(USE_ICON_THEME, tr("Use system icon theme"), &m_checkBoxUseIconTheme);
 #endif
     // Torrent recheck confirmation

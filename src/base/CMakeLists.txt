@@ -72,6 +72,7 @@ logger.h
 preferences.h
 profile.h
 scanfoldersmodel.h
+settings.h
 settingsstorage.h
 torrentfileguard.h
 torrentfilter.h
@@ -140,6 +141,7 @@ logger.cpp
 preferences.cpp
 profile.cpp
 scanfoldersmodel.cpp
+settings.cpp
 settingsstorage.cpp
 torrentfileguard.cpp
 torrentfilter.cpp

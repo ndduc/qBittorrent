@@ -94,37 +94,6 @@ void Preferences::setValue(const QString &key, const QVariant &value)
 }
 
 // General options
-QString Preferences::getLocale() const
-{
-    const QString localeName = value("Preferences/General/Locale").toString();
-    return (localeName.isEmpty() ? QLocale::system().name() : localeName);
-}
-
-void Preferences::setLocale(const QString &locale)
-{
-    setValue("Preferences/General/Locale", locale);
-}
-
-bool Preferences::useCustomUITheme() const
-{
-    return value("Preferences/General/UseCustomUITheme", false).toBool()
-           && !customUIThemePath().isEmpty();
-}
-
-void Preferences::setUseCustomUITheme(const bool use)
-{
-    setValue("Preferences/General/UseCustomUITheme", use);
-}
-
-QString Preferences::customUIThemePath() const
-{
-    return value("Preferences/General/CustomUIThemePath").toString();
-}
-
-void Preferences::setCustomUIThemePath(const QString &path)
-{
-    setValue("Preferences/General/CustomUIThemePath", path);
-}
 
 bool Preferences::deleteTorrentFilesAsDefault() const
 {
@@ -322,15 +291,6 @@ void Preferences::setWinStartup(const bool b)
 #endif // Q_OS_WIN
 
 // Downloads
-QString Preferences::lastLocationPath() const
-{
-    return Utils::Fs::toUniformPath(value("Preferences/Downloads/LastLocationPath").toString());
-}
-
-void Preferences::setLastLocationPath(const QString &path)
-{
-    setValue("Preferences/Downloads/LastLocationPath", Utils::Fs::toUniformPath(path));
-}
 
 QVariantHash Preferences::getScanDirs() const
 {
@@ -879,18 +839,6 @@ void Preferences::resolvePeerHostNames(const bool resolve)
 {
     setValue("Preferences/Connection/ResolvePeerHostNames", resolve);
 }
-
-#if (defined(Q_OS_UNIX) && !defined(Q_OS_MAC))
-bool Preferences::useSystemIconTheme() const
-{
-    return value("Preferences/Advanced/useSystemIconTheme", true).toBool();
-}
-
-void Preferences::useSystemIconTheme(const bool enabled)
-{
-    setValue("Preferences/Advanced/useSystemIconTheme", enabled);
-}
-#endif
 
 bool Preferences::recursiveDownloadDisabled() const
 {

@@ -95,49 +95,10 @@ public:
     static void freeInstance();
     static Preferences *instance();
 
-    // General options
-    QString getLocale() const;
-    void setLocale(const QString &locale);
-    bool useCustomUITheme() const;
-    void setUseCustomUITheme(bool use);
-    QString customUIThemePath() const;
-    void setCustomUIThemePath(const QString &path);
-    bool deleteTorrentFilesAsDefault() const;
-    void setDeleteTorrentFilesAsDefault(bool del);
-    bool confirmOnExit() const;
-    void setConfirmOnExit(bool confirm);
-    bool speedInTitleBar() const;
-    void showSpeedInTitleBar(bool show);
-    bool useAlternatingRowColors() const;
-    void setAlternatingRowColors(bool b);
-    bool getHideZeroValues() const;
-    void setHideZeroValues(bool b);
-    int getHideZeroComboValues() const;
-    void setHideZeroComboValues(int n);
-    bool isStatusbarDisplayed() const;
-    void setStatusbarDisplayed(bool displayed);
-    bool isToolbarDisplayed() const;
-    void setToolbarDisplayed(bool displayed);
-    bool startMinimized() const;
-    void setStartMinimized(bool b);
-    bool isSplashScreenDisabled() const;
-    void setSplashScreenDisabled(bool b);
     bool preventFromSuspendWhenDownloading() const;
     void setPreventFromSuspendWhenDownloading(bool b);
     bool preventFromSuspendWhenSeeding() const;
     void setPreventFromSuspendWhenSeeding(bool b);
-#ifdef Q_OS_WIN
-    bool WinStartup() const;
-    void setWinStartup(bool b);
-#endif
-
-    // Downloads
-    QString lastLocationPath() const;
-    void setLastLocationPath(const QString &path);
-    QVariantHash getScanDirs() const;
-    void setScanDirs(const QVariantHash &dirs);
-    QString getScanDirsLastPath() const;
-    void setScanDirsLastPath(const QString &path);
     bool isMailNotificationEnabled() const;
     void setMailNotificationEnabled(bool enabled);
     QString getMailNotificationSender() const;
@@ -154,12 +115,6 @@ public:
     void setMailNotificationSMTPUsername(const QString &username);
     QString getMailNotificationSMTPPassword() const;
     void setMailNotificationSMTPPassword(const QString &password);
-    int getActionOnDblClOnTorrentDl() const;
-    void setActionOnDblClOnTorrentDl(int act);
-    int getActionOnDblClOnTorrentFn() const;
-    void setActionOnDblClOnTorrentFn(int act);
-
-    // Connection options
     QTime getSchedulerStartTime() const;
     void setSchedulerStartTime(const QTime &time);
     QTime getSchedulerEndTime() const;
@@ -167,11 +122,7 @@ public:
     SchedulerDays getSchedulerDays() const;
     void setSchedulerDays(SchedulerDays days);
 
-    // Search
-    bool isSearchEnabled() const;
-    void setSearchEnabled(bool enabled);
-
-    // HTTP Server
+    // WebUI
     bool isWebUiEnabled() const;
     void setWebUiEnabled(bool enabled);
     QString getServerDomains() const;
@@ -182,8 +133,6 @@ public:
     void setWebUiPort(quint16 port);
     bool useUPnPForWebUIPort() const;
     void setUPnPForWebUIPort(bool enabled);
-
-    // Authentication
     bool isWebUiLocalAuthEnabled() const;
     void setWebUiLocalAuthEnabled(bool enabled);
     bool isWebUiAuthSubnetWhitelistEnabled() const;
@@ -196,16 +145,12 @@ public:
     void setWebUIPassword(const QByteArray &password);
     int getWebUISessionTimeout() const;
     void setWebUISessionTimeout(int timeout);
-
-    // WebUI security
     bool isWebUiClickjackingProtectionEnabled() const;
     void setWebUiClickjackingProtectionEnabled(bool enabled);
     bool isWebUiCSRFProtectionEnabled() const;
     void setWebUiCSRFProtectionEnabled(bool enabled);
     bool isWebUIHostHeaderValidationEnabled() const;
     void setWebUIHostHeaderValidationEnabled(bool enabled);
-
-    // HTTPS
     bool isWebUiHttpsEnabled() const;
     void setWebUiHttpsEnabled(bool enabled);
     QString getWebUIHttpsCertificatePath() const;
@@ -216,7 +161,6 @@ public:
     void setAltWebUiEnabled(bool enabled);
     QString getWebUiRootFolder() const;
     void setWebUiRootFolder(const QString &path);
-
     // Dynamic DNS
     bool isDynDNSEnabled() const;
     void setDynDNSEnabled(bool enabled);
@@ -229,11 +173,6 @@ public:
     QString getDynDNSPassword() const;
     void setDynDNSPassword(const QString &password);
 
-    // Advanced settings
-    QByteArray getUILockPassword() const;
-    void setUILockPassword(const QByteArray &password);
-    bool isUILocked() const;
-    void setUILocked(bool locked);
     bool isAutoRunEnabled() const;
     void setAutoRunEnabled(bool enabled);
     QString getAutoRunProgram() const;
@@ -254,12 +193,55 @@ public:
     void resolvePeerCountries(bool resolve);
     bool resolvePeerHostNames() const;
     void resolvePeerHostNames(bool resolve);
-#if (defined(Q_OS_UNIX) && !defined(Q_OS_MAC))
-    bool useSystemIconTheme() const;
-    void useSystemIconTheme(bool enabled);
-#endif
     bool recursiveDownloadDisabled() const;
     void disableRecursiveDownload(bool disable = true);
+    int getTrackerPort() const;
+    void setTrackerPort(int port);
+
+    // GUI
+    bool deleteTorrentFilesAsDefault() const;
+    void setDeleteTorrentFilesAsDefault(bool del);
+    bool confirmOnExit() const;
+    void setConfirmOnExit(bool confirm);
+    bool speedInTitleBar() const;
+    void showSpeedInTitleBar(bool show);
+    bool useAlternatingRowColors() const;
+    void setAlternatingRowColors(bool b);
+    bool getHideZeroValues() const;
+    void setHideZeroValues(bool b);
+    int getHideZeroComboValues() const;
+    void setHideZeroComboValues(int n);
+    bool isStatusbarDisplayed() const;
+    void setStatusbarDisplayed(bool displayed);
+    bool isToolbarDisplayed() const;
+    void setToolbarDisplayed(bool displayed);
+    bool startMinimized() const;
+    void setStartMinimized(bool b);
+    bool isSplashScreenDisabled() const;
+    void setSplashScreenDisabled(bool b);
+#ifdef Q_OS_WIN
+    bool WinStartup() const;
+    void setWinStartup(bool b);
+#endif
+
+    QVariantHash getScanDirs() const;
+    void setScanDirs(const QVariantHash &dirs);
+    QString getScanDirsLastPath() const;
+    void setScanDirsLastPath(const QString &path);
+    int getActionOnDblClOnTorrentDl() const;
+    void setActionOnDblClOnTorrentDl(int act);
+    int getActionOnDblClOnTorrentFn() const;
+    void setActionOnDblClOnTorrentFn(int act);
+
+    // Search
+    bool isSearchEnabled() const;
+    void setSearchEnabled(bool enabled);
+
+    // Advanced settings
+    QByteArray getUILockPassword() const;
+    void setUILockPassword(const QByteArray &password);
+    bool isUILocked() const;
+    void setUILocked(bool locked);
 #ifdef Q_OS_WIN
     bool neverCheckFileAssoc() const;
     void setNeverCheckFileAssoc(bool check = true);
@@ -274,8 +256,6 @@ public:
     static void setTorrentFileAssoc();
     static void setMagnetLinkAssoc();
 #endif
-    int getTrackerPort() const;
-    void setTrackerPort(int port);
 #if defined(Q_OS_WIN) || defined(Q_OS_MAC)
     bool isUpdateCheckEnabled() const;
     void setUpdateCheckEnabled(bool enabled);
