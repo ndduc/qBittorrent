@@ -44,11 +44,6 @@ class APIController : public QObject
     Q_OBJECT
     Q_DISABLE_COPY(APIController)
 
-#ifndef Q_MOC_RUN
-#define WEBAPI_PUBLIC
-#define WEBAPI_PRIVATE
-#endif
-
 public:
     explicit APIController(ISessionManager *sessionManager, QObject *parent = nullptr);
 

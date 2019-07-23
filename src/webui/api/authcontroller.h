@@ -45,16 +45,4 @@ public:
 private slots:
     void loginAction();
     void logoutAction();
-
-private:
-    bool isBanned() const;
-    int failedAttemptsCount() const;
-    void increaseFailedAttempts();
-
-    struct FailedLogin
-    {
-        int failedAttemptsCount = 0;
-        qint64 bannedAt = 0;
-    };
-    mutable QHash<QString, FailedLogin> m_clientFailedLogins;
 };

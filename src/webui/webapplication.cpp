@@ -49,6 +49,7 @@
 #include "base/utils/bytearray.h"
 #include "base/utils/fs.h"
 #include "base/utils/misc.h"
+#include "base/utils/password.h"
 #include "base/utils/random.h"
 #include "base/utils/string.h"
 #include "api/apierror.h"
@@ -67,6 +68,9 @@ const QString PATH_PREFIX_IMAGES {QStringLiteral("/images/")};
 const QString WWW_FOLDER {QStringLiteral(":/www")};
 const QString PUBLIC_FOLDER {QStringLiteral("/public")};
 const QString PRIVATE_FOLDER {QStringLiteral("/private")};
+
+constexpr int BAN_TIME = 3600000; // 1 hour
+constexpr int MAX_AUTH_FAILED_ATTEMPTS = 5;
 
 namespace
 {
@@ -487,7 +491,34 @@ void WebApplication::sessionInitialize()
     }
 
     if (!m_currentSession && !isAuthNeeded())
-        sessionStart();
+        createSession();
+}
+
+void WebApplication::createSession()
+{
+    Q_ASSERT(!m_currentSession);
+
+    // remove outdated sessions
+    Algorithm::removeIf(m_sessions, [this](const QString &, const WebSession *session)
+    {
+        if (session->hasExpired(m_sessionTimeout)) {
+            delete session;
+            return true;
+        }
+
+        return false;
+    });
+
+    m_currentSession = new WebSession(generateSid());
+    m_sessions[m_currentSession->id()] = m_currentSession;
+
+    QNetworkCookie cookie(C_SID, m_currentSession->id().toUtf8());
+    cookie.setHttpOnly(true);
+    cookie.setPath(QLatin1String("/"));
+    QByteArray cookieRawForm = cookie.toRawForm();
+    if (m_isCSRFProtectionEnabled)
+        cookieRawForm.append("; SameSite=Strict");
+    header(Http::HEADER_SET_COOKIE, cookieRawForm);
 }
 
 QString WebApplication::generateSid() const
@@ -518,31 +549,75 @@ bool WebApplication::isPublicAPI(const QString &scope, const QString &action) co
     return m_publicAPIs.contains(QString::fromLatin1("%1/%2").arg(scope, action));
 }
 
-void WebApplication::sessionStart()
+bool WebApplication::isBanned() const
 {
-    Q_ASSERT(!m_currentSession);
+    const qint64 now = QDateTime::currentMSecsSinceEpoch() / 1000;
+    const FailedLogin failedLogin = m_clientFailedLogins.value(clientId());
 
-    // remove outdated sessions
-    Algorithm::removeIf(m_sessions, [this](const QString &, const WebSession *session)
-    {
-        if (session->hasExpired(m_sessionTimeout)) {
-            delete session;
-            return true;
-        }
+    bool isBanned = (failedLogin.bannedAt > 0);
+    if (isBanned && ((now - failedLogin.bannedAt) > BAN_TIME)) {
+        m_clientFailedLogins.remove(clientId());
+        isBanned = false;
+    }
+
+    return isBanned;
+}
+
+int WebApplication::failedAttemptsCount() const
+{
+    return m_clientFailedLogins.value(clientId()).failedAttemptsCount;
+}
+
+void WebApplication::increaseFailedAttempts()
+{
+    FailedLogin &failedLogin = m_clientFailedLogins[clientId()];
+    ++failedLogin.failedAttemptsCount;
+
+    if (failedLogin.failedAttemptsCount == MAX_AUTH_FAILED_ATTEMPTS) {
+        // Max number of failed attempts reached
+        // Start ban period
+        failedLogin.bannedAt = QDateTime::currentMSecsSinceEpoch() / 1000;
+    }
+}
+
+bool WebApplication::sessionStart(const QString &username, const QString &password)
+{
+    if (m_currentSession) {
+        // NOTE: Shouldn't we just reject such requests?
+        return true;
+    }
+
+    const QString clientAddr {clientId()};
+
+    if (isBanned()) {
+        LogMsg(tr("WebAPI login failure. Reason: IP has been banned, IP: %1, username: %2")
+                .arg(clientAddr, username)
+            , Log::WARNING);
+        throw ForbiddenHTTPError {
+            tr("Your IP address has been banned after too many failed authentication attempts.")};
+    }
+
+    const Preferences *pref = Preferences::instance();
+
+    const QString validUsername {pref->getWebUiUsername()};
+    const QByteArray secret {pref->getWebUIPassword()};
+    const bool usernameEqual = Utils::Password::slowEquals(username.toUtf8(), validUsername.toUtf8());
+    const bool passwordEqual = Utils::Password::PBKDF2::verify(secret, password);
+
+    if (!usernameEqual || !passwordEqual) {
+        increaseFailedAttempts();
+        LogMsg(tr("WebAPI login failure. Reason: invalid credentials, attempt count: %1, IP: %2, username: %3")
+                .arg(QString::number(failedAttemptsCount()), clientAddr, username)
+            , Log::WARNING);
 
         return false;
-    });
+    }
 
-    m_currentSession = new WebSession(generateSid());
-    m_sessions[m_currentSession->id()] = m_currentSession;
+    m_clientFailedLogins.remove(clientAddr);
+    createSession();
+    LogMsg(tr("WebAPI login success. IP: %1").arg(clientAddr));
 
-    QNetworkCookie cookie(C_SID, m_currentSession->id().toUtf8());
-    cookie.setHttpOnly(true);
-    cookie.setPath(QLatin1String("/"));
-    QByteArray cookieRawForm = cookie.toRawForm();
-    if (m_isCSRFProtectionEnabled)
-        cookieRawForm.append("; SameSite=Strict");
-    header(Http::HEADER_SET_COOKIE, cookieRawForm);
+    return true;
 }
 
 void WebApplication::sessionEnd()

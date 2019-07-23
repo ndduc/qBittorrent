@@ -70,27 +70,17 @@ private:
 };
 
 class WebApplication
-        : public QObject, public Http::IRequestHandler, public ISessionManager
-        , private Http::ResponseBuilder
+        : public QObject, public Http::IRequestHandler
+        , private ISessionManager, private Http::ResponseBuilder
 {
     Q_OBJECT
     Q_DISABLE_COPY(WebApplication)
-
-#ifndef Q_MOC_RUN
-#define WEBAPI_PUBLIC
-#define WEBAPI_PRIVATE
-#endif
 
 public:
     explicit WebApplication(QObject *parent = nullptr);
     ~WebApplication() override;
 
     Http::Response processRequest(const Http::Request &request, const Http::Environment &env) override;
-
-    QString clientId() const override;
-    WebSession *session() override;
-    void sessionStart() override;
-    void sessionEnd() override;
 
     const Http::Request &request() const;
     const Http::Environment &env() const;
@@ -108,16 +98,30 @@ private:
     void translateDocument(QString &data);
 
     // Session management
-    QString generateSid() const;
-    void sessionInitialize();
     bool isAuthNeeded();
     bool isPublicAPI(const QString &scope, const QString &action) const;
+    QString generateSid() const;
+    void sessionInitialize();
+    void createSession();
+    bool isBanned() const;
+    int failedAttemptsCount() const;
+    void increaseFailedAttempts();
+    QString clientId() const override;
+    WebSession *session() override;
+    bool sessionStart(const QString &username, const QString &password) override;
+    void sessionEnd() override;
 
     bool isCrossSiteRequest(const Http::Request &request) const;
     bool validateHostHeader(const QStringList &domains) const;
 
     // Persistent data
     QHash<QString, WebSession *> m_sessions;
+    struct FailedLogin
+    {
+        int failedAttemptsCount = 0;
+        qint64 bannedAt = 0;
+    };
+    mutable QHash<QString, FailedLogin> m_clientFailedLogins;
 
     // Current data
     WebSession *m_currentSession = nullptr;
