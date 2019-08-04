@@ -4374,8 +4374,14 @@ void Session::handleSessionStatsAlert(const lt::session_stats_alert *p)
     emit statsUpdated();
 }
 
+#include <chrono>
+
 void Session::handleStateUpdateAlert(const lt::state_update_alert *p)
 {
+    using namespace std::chrono;
+    using clock = high_resolution_clock;
+    auto t1 = clock::now();
+
     for (const lt::torrent_status &status : p->status) {
         TorrentHandle *const torrent = m_torrents.value(status.info_hash);
 
@@ -4405,7 +4411,18 @@ void Session::handleStateUpdateAlert(const lt::state_update_alert *p)
             ++m_torrentStatusReport.nbErrored;
     }
 
+    auto t2 = clock::now();
+
     emit torrentsUpdated();
+
+    auto t3 = clock::now();
+
+    qDebug() << "+++++++++++++++++++++";
+    qDebug() << "Torrents are updated.";
+    qDebug() << "Internal update time:" << duration_cast<microseconds>(t2 - t1).count();
+    qDebug() << "External update time:" << duration_cast<microseconds>(t3 - t2).count();
+    qDebug() << "Total update time:" << duration_cast<microseconds>(t3 - t1).count();
+    qDebug() << "=====================";
 }
 
 namespace
