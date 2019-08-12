@@ -59,7 +59,6 @@
 #include "base/utils/random.h"
 #include "addnewtorrentdialog.h"
 #include "advancedsettings.h"
-#include "app/application.h"
 #include "banlistoptionsdialog.h"
 #include "ipsubnetwhitelistoptionsdialog.h"
 #include "rss/automatedrssdownloader.h"
@@ -639,14 +638,13 @@ void OptionsDialog::saveOptions()
         m_ui->checkAssociateMagnetLinks->setEnabled(!m_ui->checkAssociateMagnetLinks->isChecked());
     }
 #endif
-    auto *const app = static_cast<Application *>(QCoreApplication::instance());
-    app->setFileLoggerPath(m_ui->textFileLogPath->selectedPath());
-    app->setFileLoggerBackup(m_ui->checkFileLogBackup->isChecked());
-    app->setFileLoggerMaxSize(m_ui->spinFileLogSize->value() * 1024);
-    app->setFileLoggerAge(m_ui->spinFileLogAge->value());
-    app->setFileLoggerAgeType(m_ui->comboFileLogAgeType->currentIndex());
-    app->setFileLoggerDeleteOld(m_ui->checkFileLogDelete->isChecked());
-    app->setFileLoggerEnabled(m_ui->checkFileLog->isChecked());
+    pref->setFileLoggerPath(m_ui->textFileLogPath->selectedPath());
+    pref->setFileLoggerBackup(m_ui->checkFileLogBackup->isChecked());
+    pref->setFileLoggerMaxSize(m_ui->spinFileLogSize->value() * 1024);
+    pref->setFileLoggerAge(m_ui->spinFileLogAge->value());
+    pref->setFileLoggerAgeType(m_ui->comboFileLogAgeType->currentIndex());
+    pref->setFileLoggerDeleteOld(m_ui->checkFileLogDelete->isChecked());
+    pref->setFileLoggerEnabled(m_ui->checkFileLog->isChecked());
     // End General preferences
 
     RSS::Session::instance()->setRefreshInterval(m_ui->spinRSSRefreshInterval->value());
@@ -870,19 +868,18 @@ void OptionsDialog::loadOptions()
     m_ui->checkAssociateMagnetLinks->setEnabled(!m_ui->checkAssociateMagnetLinks->isChecked());
 #endif
 
-    const Application *const app = static_cast<Application*>(QCoreApplication::instance());
-    m_ui->checkFileLog->setChecked(app->isFileLoggerEnabled());
-    m_ui->textFileLogPath->setSelectedPath(app->fileLoggerPath());
-    fileLogBackup = app->isFileLoggerBackup();
+    m_ui->checkFileLog->setChecked(pref->isFileLoggerEnabled());
+    m_ui->textFileLogPath->setSelectedPath(pref->fileLoggerPath());
+    fileLogBackup = pref->isFileLoggerBackup();
     m_ui->checkFileLogBackup->setChecked(fileLogBackup);
     m_ui->spinFileLogSize->setEnabled(fileLogBackup);
-    fileLogDelete = app->isFileLoggerDeleteOld();
+    fileLogDelete = pref->isFileLoggerDeleteOld();
     m_ui->checkFileLogDelete->setChecked(fileLogDelete);
     m_ui->spinFileLogAge->setEnabled(fileLogDelete);
     m_ui->comboFileLogAgeType->setEnabled(fileLogDelete);
-    m_ui->spinFileLogSize->setValue(app->fileLoggerMaxSize() / 1024);
-    m_ui->spinFileLogAge->setValue(app->fileLoggerAge());
-    m_ui->comboFileLogAgeType->setCurrentIndex(app->fileLoggerAgeType());
+    m_ui->spinFileLogSize->setValue(pref->fileLoggerMaxSize() / 1024);
+    m_ui->spinFileLogAge->setValue(pref->fileLoggerAge());
+    m_ui->comboFileLogAgeType->setCurrentIndex(pref->fileLoggerAgeType());
     // End General preferences
 
     m_ui->checkRSSEnable->setChecked(RSS::Session::instance()->isProcessingEnabled());

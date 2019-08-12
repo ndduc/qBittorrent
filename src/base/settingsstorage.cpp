@@ -40,6 +40,8 @@
 
 namespace
 {
+    const QString SETTINGS_NAME {QLatin1String {"qBittorrent"}};
+
     // Encapsulates serialization of settings in "atomic" way.
     // write() does not leave half-written files,
     // read() has a workaround for a case of power loss during a previous serialization
@@ -153,7 +155,7 @@ namespace
 SettingsStorage *SettingsStorage::m_instance = nullptr;
 
 SettingsStorage::SettingsStorage()
-    : m_data{TransactionalSettings(QLatin1String("qBittorrent")).read()}
+    : m_data {(TransactionalSettings {SETTINGS_NAME}).read()}
     , m_dirty(false)
     , m_lock(QReadWriteLock::Recursive)
 {
@@ -190,7 +192,7 @@ bool SettingsStorage::save()
     QWriteLocker locker(&m_lock);
     if (!m_dirty) return false; // something might have changed while we were getting the lock
 
-    TransactionalSettings settings(QLatin1String("qBittorrent"));
+    TransactionalSettings settings {SETTINGS_NAME};
     if (settings.write(m_data)) {
         m_dirty = false;
         return true;

@@ -27,8 +27,7 @@
  * exception statement from your version.
  */
 
-#ifndef SETTINGSSTORAGE_H
-#define SETTINGSSTORAGE_H
+#pragma once
 
 #include <QObject>
 #include <QReadWriteLock>
@@ -38,8 +37,10 @@
 class SettingsStorage : public QObject
 {
     Q_OBJECT
+    Q_DISABLE_COPY(SettingsStorage)
+
     SettingsStorage();
-    ~SettingsStorage();
+    ~SettingsStorage() override;
 
 public:
     static void initInstance();
@@ -61,5 +62,3 @@ private:
     QTimer m_timer;
     mutable QReadWriteLock m_lock;
 };
-
-#endif // SETTINGSSTORAGE_H

@@ -57,8 +57,38 @@
 
 #include "algorithm.h"
 #include "global.h"
+#include "profile.h"
 #include "settingsstorage.h"
 #include "utils/fs.h"
+
+namespace
+{
+    // FileLogger
+    const QString FILELOGGER_LOGFOLDER {QStringLiteral("logs")};
+    const int FILELOGGER_MIN_FILESIZE = 1024; // 1KiB
+    const int FILELOGGER_MAX_FILESIZE = 1000 * 1024 * 1024; // 1000MiB
+    const int FILELOGGER_DEFAULT_FILESIZE = 65 * 1024; // 65KiB
+    const QString FILELOGGER_ENABLED {QStringLiteral("Application/FileLogger/Enabled")};
+    const QString FILELOGGER_PATH {QStringLiteral("Application/FileLogger/Path")};
+    const QString FILELOGGER_BACKUP {QStringLiteral("Application/FileLogger/Backup")};
+    const QString FILELOGGER_DELETEOLD {QStringLiteral("Application/FileLogger/DeleteOld")};
+    const QString FILELOGGER_MAXSIZEBYTES {QStringLiteral("Application/FileLogger/MaxSizeBytes")};
+    const QString FILELOGGER_AGE {QStringLiteral("Application/FileLogger/Age")};
+    const QString FILELOGGER_AGETYPE {QStringLiteral("Application/FileLogger/AgeType")};
+
+    // ExecutionLog
+    const QString LOGWIDGET_ENABLED {QStringLiteral("GUI/Log/Enabled")};
+    const QString LOGWIDGET_TYPES {QStringLiteral("GUI/Log/Types")};
+
+    // Notifications
+    const QString NOTIFICATIONS_ENABLED {QStringLiteral("GUI/Notifications/Enabled")};
+    const QString NOTIFICATIONS_TORRENTADDED {QStringLiteral("GUI/Notifications/TorrentAdded")};
+
+    // Misc
+    const QString DOWNLOAD_TRACKER_FAVICON {QStringLiteral("GUI/DownloadTrackerFavicon")};
+
+    // BitTorrent
+}
 
 Preferences *Preferences::m_instance = nullptr;
 
@@ -93,7 +123,136 @@ void Preferences::setValue(const QString &key, const QVariant &value)
     SettingsStorage::instance()->storeValue(key, value);
 }
 
+// GUI options
+
+bool Preferences::isLogWidgetEnabled() const
+{
+    return value(LOGWIDGET_ENABLED, false).toBool();
+}
+
+void Preferences::setLogWidgetEnabled(bool value)
+{
+    setValue(LOGWIDGET_ENABLED, value);
+}
+
+int Preferences::logWidgetMsgTypes() const
+{
+    // as default value we need all the bits set
+    // -1 is considered the portable way to achieve that
+    return value(LOGWIDGET_TYPES, -1).toInt();
+}
+
+void Preferences::setLogWidgetMsgTypes(const int value)
+{
+    setValue(LOGWIDGET_TYPES, value);
+}
+
+bool Preferences::isNotificationsEnabled() const
+{
+    return value(NOTIFICATIONS_ENABLED, true).toBool();
+}
+
+void Preferences::setNotificationsEnabled(bool value)
+{
+    setValue(NOTIFICATIONS_ENABLED, value);
+}
+
+bool Preferences::isTorrentAddedNotificationsEnabled() const
+{
+    return value(NOTIFICATIONS_TORRENTADDED, false).toBool();
+}
+
+void Preferences::setTorrentAddedNotificationsEnabled(bool value)
+{
+    setValue(NOTIFICATIONS_TORRENTADDED, value);
+}
+
+bool Preferences::isDownloadTrackerFavicon() const
+{
+    return value(DOWNLOAD_TRACKER_FAVICON, false).toBool();
+}
+
+void Preferences::setDownloadTrackerFavicon(bool value)
+{
+    setValue(DOWNLOAD_TRACKER_FAVICON, value);
+}
+
 // General options
+
+bool Preferences::isFileLoggerEnabled() const
+{
+    return value(FILELOGGER_ENABLED, true).toBool();
+}
+
+void Preferences::setFileLoggerEnabled(const bool value)
+{
+    setValue(FILELOGGER_ENABLED, value);
+}
+
+QString Preferences::fileLoggerPath() const
+{
+    return value(FILELOGGER_PATH, {specialFolderLocation(SpecialFolder::Data) + FILELOGGER_LOGFOLDER}).toString();
+}
+
+void Preferences::setFileLoggerPath(const QString &path)
+{
+    setValue(FILELOGGER_PATH, path);
+}
+
+bool Preferences::isFileLoggerBackup() const
+{
+    return value(FILELOGGER_BACKUP, true).toBool();
+}
+
+void Preferences::setFileLoggerBackup(const bool value)
+{
+    setValue(FILELOGGER_BACKUP, value);
+}
+
+bool Preferences::isFileLoggerDeleteOld() const
+{
+    return value(FILELOGGER_DELETEOLD, true).toBool();
+}
+
+void Preferences::setFileLoggerDeleteOld(const bool value)
+{
+    setValue(FILELOGGER_DELETEOLD, value);
+}
+
+int Preferences::fileLoggerMaxSize() const
+{
+    const int val = value(FILELOGGER_MAXSIZEBYTES, FILELOGGER_DEFAULT_FILESIZE).toInt();
+    return std::min(std::max(val, FILELOGGER_MIN_FILESIZE), FILELOGGER_MAX_FILESIZE);
+}
+
+void Preferences::setFileLoggerMaxSize(const int bytes)
+{
+    const int clampedValue = std::min(std::max(bytes, FILELOGGER_MIN_FILESIZE), FILELOGGER_MAX_FILESIZE);
+    setValue(FILELOGGER_MAXSIZEBYTES, clampedValue);
+}
+
+int Preferences::fileLoggerAge() const
+{
+    const int val = value(FILELOGGER_AGE, 1).toInt();
+    return std::min(std::max(val, 1), 365);
+}
+
+void Preferences::setFileLoggerAge(const int value)
+{
+    setValue(FILELOGGER_AGE, std::min(std::max(value, 1), 365));
+}
+
+int Preferences::fileLoggerAgeType() const
+{
+    const int val = value(FILELOGGER_AGETYPE, 1).toInt();
+    return ((val < 0) || (val > 2)) ? 1 : val;
+}
+
+void Preferences::setFileLoggerAgeType(const int value)
+{
+    setValue(FILELOGGER_AGETYPE, ((value < 0) || (value > 2)) ? 1 : value);
+}
+
 QString Preferences::getLocale() const
 {
     const QString localeName = value("Preferences/General/Locale").toString();
@@ -320,17 +479,6 @@ void Preferences::setWinStartup(const bool b)
     }
 }
 #endif // Q_OS_WIN
-
-// Downloads
-QString Preferences::lastLocationPath() const
-{
-    return Utils::Fs::toUniformPath(value("Preferences/Downloads/LastLocationPath").toString());
-}
-
-void Preferences::setLastLocationPath(const QString &path)
-{
-    setValue("Preferences/Downloads/LastLocationPath", Utils::Fs::toUniformPath(path));
-}
 
 QVariantHash Preferences::getScanDirs() const
 {
@@ -1329,26 +1477,6 @@ QStringList Preferences::getSearchEngDisabled() const
 void Preferences::setSearchEngDisabled(const QStringList &engines)
 {
     setValue("SearchEngines/disabledEngines", engines);
-}
-
-QString Preferences::getTorImportLastContentDir() const
-{
-    return value("TorrentImport/LastContentDir", QDir::homePath()).toString();
-}
-
-void Preferences::setTorImportLastContentDir(const QString &path)
-{
-    setValue("TorrentImport/LastContentDir", path);
-}
-
-QByteArray Preferences::getTorImportGeometry() const
-{
-    return value("TorrentImportDlg/dimensions").toByteArray();
-}
-
-void Preferences::setTorImportGeometry(const QByteArray &geometry)
-{
-    setValue("TorrentImportDlg/dimensions", geometry);
 }
 
 bool Preferences::getStatusFilterState() const

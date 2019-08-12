@@ -104,21 +104,6 @@
 
 namespace
 {
-#define SETTINGS_KEY(name) "GUI/" name
-
-    // ExecutionLog properties keys
-#define EXECUTIONLOG_SETTINGS_KEY(name) QStringLiteral(SETTINGS_KEY("Log/") name)
-    const QString KEY_EXECUTIONLOG_ENABLED = EXECUTIONLOG_SETTINGS_KEY("Enabled");
-    const QString KEY_EXECUTIONLOG_TYPES = EXECUTIONLOG_SETTINGS_KEY("Types");
-
-    // Notifications properties keys
-#define NOTIFICATIONS_SETTINGS_KEY(name) QStringLiteral(SETTINGS_KEY("Notifications/") name)
-    const QString KEY_NOTIFICATIONS_ENABLED = NOTIFICATIONS_SETTINGS_KEY("Enabled");
-    const QString KEY_NOTIFICATIONS_TORRENTADDED = NOTIFICATIONS_SETTINGS_KEY("TorrentAdded");
-
-    // Misc
-    const QString KEY_DOWNLOAD_TRACKER_FAVICON = QStringLiteral(SETTINGS_KEY("DownloadTrackerFavicon"));
-
     // just a shortcut
     inline SettingsStorage *settings()
     {
@@ -231,7 +216,8 @@ MainWindow::MainWindow(QWidget *parent)
     // m_transferListWidget->setStyleSheet("QTreeView {border: none;}");  // borderless
     m_propertiesWidget = new PropertiesWidget(hSplitter);
     connect(m_transferListWidget, &TransferListWidget::currentTorrentChanged, m_propertiesWidget, &PropertiesWidget::loadTorrentInfos);
-    m_transferListFiltersWidget = new TransferListFiltersWidget(m_splitter, m_transferListWidget, isDownloadTrackerFavicon());
+    m_transferListFiltersWidget = new TransferListFiltersWidget {m_splitter
+        , m_transferListWidget, Preferences::instance()->isDownloadTrackerFavicon()};
     hSplitter->addWidget(m_transferListWidget);
     hSplitter->addWidget(m_propertiesWidget);
     m_splitter->addWidget(m_transferListFiltersWidget);
@@ -351,9 +337,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->actionSpeedInTitleBar->setChecked(pref->speedInTitleBar());
     m_ui->actionRSSReader->setChecked(pref->isRSSWidgetEnabled());
     m_ui->actionSearchWidget->setChecked(pref->isSearchEnabled());
-    m_ui->actionExecutionLogs->setChecked(isExecutionLogEnabled());
+    m_ui->actionExecutionLogs->setChecked(pref->isLogWidgetEnabled());
 
-    Log::MsgTypes flags(executionLogMsgTypes());
+    Log::MsgTypes flags(pref->logWidgetMsgTypes());
     m_ui->actionNormalMessages->setChecked(flags & Log::NORMAL);
     m_ui->actionInformationMessages->setChecked(flags & Log::INFO);
     m_ui->actionWarningMessages->setChecked(flags & Log::WARNING);
@@ -440,7 +426,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_transferListWidget->getSourceModel(), &QAbstractItemModel::rowsInserted, this, &MainWindow::updateNbTorrents);
     connect(m_transferListWidget->getSourceModel(), &QAbstractItemModel::rowsRemoved, this, &MainWindow::updateNbTorrents);
 
-    connect(pref, &Preferences::changed, this, &MainWindow::optionsSaved);
+    connect(pref, &Preferences::changed, this, &MainWindow::configure);
 
     qDebug("GUI Built");
 #ifdef Q_OS_WIN
@@ -465,60 +451,6 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete m_ui;
-}
-
-bool MainWindow::isExecutionLogEnabled() const
-{
-    return settings()->loadValue(KEY_EXECUTIONLOG_ENABLED, false).toBool();
-}
-
-void MainWindow::setExecutionLogEnabled(bool value)
-{
-    settings()->storeValue(KEY_EXECUTIONLOG_ENABLED, value);
-}
-
-int MainWindow::executionLogMsgTypes() const
-{
-    // as default value we need all the bits set
-    // -1 is considered the portable way to achieve that
-    return settings()->loadValue(KEY_EXECUTIONLOG_TYPES, -1).toInt();
-}
-
-void MainWindow::setExecutionLogMsgTypes(const int value)
-{
-    m_executionLog->showMsgTypes(static_cast<Log::MsgTypes>(value));
-    settings()->storeValue(KEY_EXECUTIONLOG_TYPES, value);
-}
-
-bool MainWindow::isNotificationsEnabled() const
-{
-    return settings()->loadValue(KEY_NOTIFICATIONS_ENABLED, true).toBool();
-}
-
-void MainWindow::setNotificationsEnabled(bool value)
-{
-    settings()->storeValue(KEY_NOTIFICATIONS_ENABLED, value);
-}
-
-bool MainWindow::isTorrentAddedNotificationsEnabled() const
-{
-    return settings()->loadValue(KEY_NOTIFICATIONS_TORRENTADDED, false).toBool();
-}
-
-void MainWindow::setTorrentAddedNotificationsEnabled(bool value)
-{
-    settings()->storeValue(KEY_NOTIFICATIONS_TORRENTADDED, value);
-}
-
-bool MainWindow::isDownloadTrackerFavicon() const
-{
-    return settings()->loadValue(KEY_DOWNLOAD_TRACKER_FAVICON, false).toBool();
-}
-
-void MainWindow::setDownloadTrackerFavicon(bool value)
-{
-    m_transferListFiltersWidget->setDownloadTrackerFavicon(value);
-    settings()->storeValue(KEY_DOWNLOAD_TRACKER_FAVICON, value);
 }
 
 void MainWindow::addToolbarContextMenu()
@@ -825,7 +757,7 @@ void MainWindow::addTorrentFailed(const QString &error) const
 // called when a torrent was added
 void MainWindow::torrentNew(BitTorrent::TorrentHandle *const torrent) const
 {
-    if (isTorrentAddedNotificationsEnabled())
+    if (Preferences::instance()->isTorrentAddedNotificationsEnabled())
         showNotificationBaloon(tr("Torrent added"), tr("'%1' was added.", "e.g: xxx.avi was added.").arg(torrent->name()));
 }
 
@@ -1381,7 +1313,7 @@ void MainWindow::activate()
     }
 }
 
-void MainWindow::optionsSaved()
+void MainWindow::configure()
 {
     loadPreferences();
 }
@@ -1403,7 +1335,7 @@ void MainWindow::showStatusBar(bool show)
 
 void MainWindow::loadPreferences(bool configureSession)
 {
-    Logger::instance()->addMessage(tr("Options were saved successfully."));
+    LogMsg(tr("Options were saved successfully."));
     const Preferences *const pref = Preferences::instance();
 #ifdef Q_OS_MAC
     Q_UNUSED(configureSession);
@@ -1506,6 +1438,8 @@ void MainWindow::loadPreferences(bool configureSession)
     }
 #endif
 
+    m_transferListFiltersWidget->setDownloadTrackerFavicon(pref->isDownloadTrackerFavicon());
+
     qDebug("GUI settings loaded");
 }
 
@@ -1559,7 +1493,7 @@ void MainWindow::updateGUI()
 
 void MainWindow::showNotificationBaloon(const QString &title, const QString &msg) const
 {
-    if (!isNotificationsEnabled()) return;
+    if (!Preferences::instance()->isNotificationsEnabled()) return;
 #if (defined(Q_OS_UNIX) && !defined(Q_OS_MAC)) && defined(QT_DBUS_LIB)
     org::freedesktop::Notifications notifications("org.freedesktop.Notifications",
                                                   "/org/freedesktop/Notifications",
@@ -1859,7 +1793,8 @@ void MainWindow::on_actionExecutionLogs_triggered(bool checked)
 {
     if (checked) {
         Q_ASSERT(!m_executionLog);
-        m_executionLog = new ExecutionLogWidget(m_tabs, static_cast<Log::MsgType>(executionLogMsgTypes()));
+        m_executionLog = new ExecutionLogWidget {m_tabs
+            , static_cast<Log::MsgType>(Preferences::instance()->logWidgetMsgTypes())};
 #ifdef Q_OS_MAC
         m_tabs->addTab(m_executionLog, tr("Execution Log"));
 #else
@@ -1875,7 +1810,7 @@ void MainWindow::on_actionExecutionLogs_triggered(bool checked)
     m_ui->actionInformationMessages->setEnabled(checked);
     m_ui->actionWarningMessages->setEnabled(checked);
     m_ui->actionCriticalMessages->setEnabled(checked);
-    setExecutionLogEnabled(checked);
+    Preferences::instance()->setLogWidgetEnabled(checked);
 }
 
 void MainWindow::on_actionNormalMessages_triggered(bool checked)
@@ -1883,9 +1818,10 @@ void MainWindow::on_actionNormalMessages_triggered(bool checked)
     if (!m_executionLog)
         return;
 
-    Log::MsgTypes flags(executionLogMsgTypes());
+    Log::MsgTypes flags(Preferences::instance()->logWidgetMsgTypes());
     checked ? (flags |= Log::NORMAL) : (flags &= ~Log::NORMAL);
-    setExecutionLogMsgTypes(flags);
+    m_executionLog->showMsgTypes(flags);
+    Preferences::instance()->setLogWidgetMsgTypes(flags);
 }
 
 void MainWindow::on_actionInformationMessages_triggered(bool checked)
@@ -1893,9 +1829,10 @@ void MainWindow::on_actionInformationMessages_triggered(bool checked)
     if (!m_executionLog)
         return;
 
-    Log::MsgTypes flags(executionLogMsgTypes());
+    Log::MsgTypes flags(Preferences::instance()->logWidgetMsgTypes());
     checked ? (flags |= Log::INFO) : (flags &= ~Log::INFO);
-    setExecutionLogMsgTypes(flags);
+    m_executionLog->showMsgTypes(flags);
+    Preferences::instance()->setLogWidgetMsgTypes(flags);
 }
 
 void MainWindow::on_actionWarningMessages_triggered(bool checked)
@@ -1903,9 +1840,10 @@ void MainWindow::on_actionWarningMessages_triggered(bool checked)
     if (!m_executionLog)
         return;
 
-    Log::MsgTypes flags(executionLogMsgTypes());
+    Log::MsgTypes flags(Preferences::instance()->logWidgetMsgTypes());
     checked ? (flags |= Log::WARNING) : (flags &= ~Log::WARNING);
-    setExecutionLogMsgTypes(flags);
+    m_executionLog->showMsgTypes(flags);
+    Preferences::instance()->setLogWidgetMsgTypes(flags);
 }
 
 void MainWindow::on_actionCriticalMessages_triggered(bool checked)
@@ -1913,9 +1851,10 @@ void MainWindow::on_actionCriticalMessages_triggered(bool checked)
     if (!m_executionLog)
         return;
 
-    Log::MsgTypes flags(executionLogMsgTypes());
+    Log::MsgTypes flags(Preferences::instance()->logWidgetMsgTypes());
     checked ? (flags |= Log::CRITICAL) : (flags &= ~Log::CRITICAL);
-    setExecutionLogMsgTypes(flags);
+    m_executionLog->showMsgTypes(flags);
+    Preferences::instance()->setLogWidgetMsgTypes(flags);
 }
 
 void MainWindow::on_actionAutoExit_toggled(bool enabled)
