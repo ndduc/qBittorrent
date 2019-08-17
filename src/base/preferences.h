@@ -335,8 +335,8 @@ public:
     void setRssGeometrySize(const QSize &geometry);
     QByteArray getRssHSplitterSizes() const;
     void setRssHSplitterSizes(const QByteArray &sizes);
-    QStringList getRssOpenFolders() const;
-    void setRssOpenFolders(const QStringList &folders);
+    QStringList getRSSWidgetExpandedItems() const;
+    void setRSSWidgetExpandedItems(const QStringList &items);
     QByteArray getRssSideSplitterState() const;
     void setRssSideSplitterState(const QByteArray &state);
     QByteArray getRssMainSplitterState() const;
