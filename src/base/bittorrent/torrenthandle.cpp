@@ -2320,3 +2320,8 @@ QVector<qreal> TorrentHandle::availableFileFractions() const
     }
     return res;
 }
+
+uint BitTorrent::qHash(TorrentState key, uint seed)
+{
+    return ::qHash(static_cast<std::underlying_type_t<TorrentState>>(key), seed);
+}

@@ -458,6 +458,8 @@ namespace BitTorrent
 
         bool m_unchecked = false;
     };
+
+    uint qHash(TorrentState key, uint seed);
 }
 
 Q_DECLARE_METATYPE(BitTorrent::TorrentState)

@@ -33,10 +33,11 @@
 #include <QAbstractListModel>
 #include <QList>
 
+#include "base/bittorrent/torrenthandle.h"
+
 namespace BitTorrent
 {
     class InfoHash;
-    class TorrentHandle;
 }
 
 class TransferListModel : public QAbstractListModel
@@ -100,8 +101,13 @@ private slots:
     void handleTorrentsUpdated(const QVector<BitTorrent::TorrentHandle *> &torrents);
 
 private:
+    QString statusString(const BitTorrent::TorrentState state, const QString &errorMessage) const;
+    QString displayValue(const BitTorrent::TorrentHandle *torrent, int column) const;
+    QVariant internalValue(const BitTorrent::TorrentHandle *torrent, int column, bool alt = false) const;
+
     QList<BitTorrent::TorrentHandle *> m_torrentList;  // maps row number to torrent handle
     QHash<BitTorrent::TorrentHandle *, int> m_torrentMap;  // maps torrent handle to row number
+    const QHash<BitTorrent::TorrentState, QString> m_statusStrings;
 };
 
 #endif // TRANSFERLISTMODEL_H
