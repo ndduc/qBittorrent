@@ -76,6 +76,78 @@
 
 namespace
 {
+    class DefaultColorProvider : public QObject, public TransferListColorProvider
+    {
+    public :
+        explicit DefaultColorProvider(TransferListWidget *transferListWidget)
+            : QObject {transferListWidget}
+        {
+        }
+
+        QColor colorByState(const BitTorrent::TorrentState state) const override
+        {
+            // Color names taken from http://cloford.com/resources/colours/500col.htm
+            bool dark = isDarkTheme();
+
+            switch (state) {
+            case BitTorrent::TorrentState::Downloading:
+            case BitTorrent::TorrentState::ForcedDownloading:
+            case BitTorrent::TorrentState::DownloadingMetadata:
+                if (!dark)
+                    return {34, 139, 34}; // Forest Green
+                else
+                    return {50, 205, 50}; // Lime Green
+            case BitTorrent::TorrentState::Allocating:
+            case BitTorrent::TorrentState::StalledDownloading:
+            case BitTorrent::TorrentState::StalledUploading:
+                if (!dark)
+                    return {0, 0, 0}; // Black
+                else
+                    return {204, 204, 204}; // Gray 80
+            case BitTorrent::TorrentState::Uploading:
+            case BitTorrent::TorrentState::ForcedUploading:
+                if (!dark)
+                    return {65, 105, 225}; // Royal Blue
+                else
+                    return {99, 184, 255}; // Steel Blue 1
+            case BitTorrent::TorrentState::PausedDownloading:
+                return {250, 128, 114}; // Salmon
+            case BitTorrent::TorrentState::PausedUploading:
+                if (!dark)
+                    return {0, 0, 139}; // Dark Blue
+                else
+                    return {79, 148, 205}; // Steel Blue 3
+            case BitTorrent::TorrentState::Error:
+            case BitTorrent::TorrentState::MissingFiles:
+                return {255, 0, 0}; // red
+            case BitTorrent::TorrentState::QueuedDownloading:
+            case BitTorrent::TorrentState::QueuedUploading:
+            case BitTorrent::TorrentState::CheckingDownloading:
+            case BitTorrent::TorrentState::CheckingUploading:
+            case BitTorrent::TorrentState::CheckingResumeData:
+            case BitTorrent::TorrentState::Moving:
+                if (!dark)
+                    return {0, 128, 128}; // Teal
+                else
+                    return {0, 205, 205}; // Cyan 3
+            case BitTorrent::TorrentState::Unknown:
+                return {255, 0, 0}; // red
+            default:
+                Q_ASSERT(false);
+                return {255, 0, 0}; // red
+            }
+        }
+
+    private:
+        bool isDarkTheme() const
+        {
+            const QPalette palette = static_cast<TransferListWidget *>(parent())->palette();
+            // QPalette::Base is used for the background of the Treeview
+            const QColor &color = palette.color(QPalette::Active, QPalette::Base);
+            return (color.lightness() < 127);
+        }
+    };
+
     QVector<BitTorrent::InfoHash> extractHashes(const QVector<BitTorrent::TorrentHandle *> &torrents)
     {
         QVector<BitTorrent::InfoHash> hashes;
@@ -133,7 +205,7 @@ TransferListWidget::TransferListWidget(QWidget *parent, MainWindow *mainWindow)
     setItemDelegate(m_listDelegate);
 
     // Create transfer list model
-    m_listModel = new TransferListModel(this);
+    m_listModel = new TransferListModel {new DefaultColorProvider {this}, this};
 
     m_sortFilterModel = new TransferListSortModel(this);
     m_sortFilterModel->setDynamicSortFilter(true);

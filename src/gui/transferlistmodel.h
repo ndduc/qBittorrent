@@ -40,6 +40,13 @@ namespace BitTorrent
     class InfoHash;
 }
 
+class TransferListColorProvider
+{
+public:
+    virtual ~TransferListColorProvider() = default;
+    virtual QColor colorByState(const BitTorrent::TorrentState state) const = 0;
+};
+
 class TransferListModel : public QAbstractListModel
 {
     Q_OBJECT
@@ -83,7 +90,7 @@ public:
         NB_COLUMNS
     };
 
-    explicit TransferListModel(QObject *parent = nullptr);
+    explicit TransferListModel(const TransferListColorProvider *colorProvider, QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent = {}) const override;
     int columnCount(const QModelIndex &parent = {}) const override;
@@ -108,6 +115,7 @@ private:
     QList<BitTorrent::TorrentHandle *> m_torrentList;  // maps row number to torrent handle
     QHash<BitTorrent::TorrentHandle *, int> m_torrentMap;  // maps torrent handle to row number
     const QHash<BitTorrent::TorrentState, QString> m_statusStrings;
+    const TransferListColorProvider *m_colorProvider;
 };
 
 #endif // TRANSFERLISTMODEL_H
