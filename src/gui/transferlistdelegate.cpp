@@ -58,15 +58,9 @@ void TransferListDelegate::paint(QPainter *painter, const QStyleOptionViewItem &
     newopt.minimum = 0;
     newopt.state = option.state;
     newopt.textVisible = true;
+    newopt.textAlignment = Qt::AlignCenter;
 
-#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
-    // XXX: To avoid having the progress text on the right of the bar
-    QProxyStyle fusionStyle {"fusion"};
-    QStyle *style = &fusionStyle;
-#else
-    QStyle *style = option.widget ? option.widget->style() : QApplication::style();
-#endif
-
+    const QStyle *style = option.widget ? option.widget->style() : QApplication::style();
     painter->save();
     style->drawControl(QStyle::CE_ProgressBar, &newopt, painter, option.widget);
     painter->restore();
